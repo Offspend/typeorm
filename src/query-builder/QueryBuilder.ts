@@ -1094,6 +1094,8 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                 return `${condition.parameters[0]} LIKE ${condition.parameters[1]}`
             case "between":
                 return `${condition.parameters[0]} BETWEEN ${condition.parameters[1]} AND ${condition.parameters[2]}`
+            case "jsonOperator":
+                return `${condition.parameters[0]} ->> ${condition.parameters[1]} ${condition.parameters[2]}`
             case "in":
                 if (condition.parameters.length <= 1) {
                     return "0=1"
@@ -1121,11 +1123,11 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                 )}`
             case "and":
                 return condition.parameters.join(" AND ")
+            default:
+                throw new TypeError(
+                               `Unsupported FindOperator ${FindOperator.constructor.name}`,
+                         );
         }
-
-        throw new TypeError(
-            `Unsupported FindOperator ${FindOperator.constructor.name}`,
-        )
     }
 
     protected createCteExpression(): string {
@@ -1547,6 +1549,13 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                         ),
                     ),
                 }
+            } else if (parameterValue.type === 'jsonOperator') {
+                const [jsonKey, operator]: [string, FindOperator<any>] = parameterValue.value;
+                return {
+                    operator: parameterValue.type,
+                    parameters: [aliasPath, jsonKey, this.createWhereConditionExpression(this.getWherePredicateCondition('', operator)) ]
+                }
+
             } else {
                 return {
                     operator: parameterValue.type,
