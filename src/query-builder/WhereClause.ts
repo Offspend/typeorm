@@ -20,7 +20,6 @@ type PredicateOperator =
     | "jsonContains"
     | "jsonOperator"
 
-
 export interface WherePredicateOperator {
     operator: PredicateOperator
 
