@@ -1095,7 +1095,7 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
             case "between":
                 return `${condition.parameters[0]} BETWEEN ${condition.parameters[1]} AND ${condition.parameters[2]}`
             case "jsonOperator":
-                return `${condition.parameters[0]} ->> ${condition.parameters[1]} ${condition.parameters[2]}`
+                return `${condition.parameters[0]} ->> '${condition.parameters[1]}' ${condition.parameters[2]}`
             case "in":
                 if (condition.parameters.length <= 1) {
                     return "0=1"
