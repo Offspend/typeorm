@@ -98,7 +98,7 @@ describe("github issues > #8522 Single table inheritance returns the same discri
                 dropSchema: true,
             }).should.be.rejectedWith(
                 TypeORMError,
-                `Entities ClientRole and InternalRole have the same discriminator values. Make sure they are different while using the @ChildEntity decorator.`,
+                `Entities InternalRole and ClientRole have the same discriminator values. Make sure they are different while using the @ChildEntity decorator.`,
             )
         })
     })
