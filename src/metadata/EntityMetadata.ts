@@ -23,6 +23,7 @@ import { ClosureTreeOptions } from "./types/ClosureTreeOptions"
 import { EntityPropertyNotFoundError } from "../error/EntityPropertyNotFoundError"
 import { ObjectUtils } from "../util/ObjectUtils"
 import { shorten } from "../util/StringUtils"
+import { RowLevelSecurityMetadata } from "./RowLevelSecurityMetadata"
 
 /**
  * Contains all entity metadata.

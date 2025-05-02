@@ -2809,10 +2809,16 @@ export class PostgresQueryRunner
                     rowLevelSecurityPolicy.expression!,
                 )
 
-        const up = this.createCheckConstraintSql(table, checkConstraint)
-        const down = this.dropCheckConstraintSql(table, checkConstraint)
+        const up = this.createRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
+        const down = this.dropRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
         await this.executeQueries(up, down)
-        table.addCheckConstraint(checkConstraint)
+        table.addRowLevelSecurityPolicy(rowLevelSecurityPolicy)
     }
 
     /**
@@ -2822,8 +2828,12 @@ export class PostgresQueryRunner
         tableOrName: Table | string,
         rowLevelSecurityPolicies: TableRowLevelSecurityPolicy[],
     ): Promise<void> {
-        const promises = checkConstraints.map((checkConstraint) =>
-            this.createCheckConstraint(tableOrName, checkConstraint),
+        const promises = rowLevelSecurityPolicies.map(
+            (rowLevelSecurityPolicy) =>
+                this.createRowLevelSecurityPolicy(
+                    tableOrName,
+                    rowLevelSecurityPolicy,
+                ),
         )
         await Promise.all(promises)
     }
@@ -2838,18 +2848,29 @@ export class PostgresQueryRunner
         const table = InstanceChecker.isTable(tableOrName)
             ? tableOrName
             : await this.getCachedTable(tableOrName)
-        const checkConstraint = InstanceChecker.isTableCheck(checkOrName)
-            ? checkOrName
-            : table.checks.find((c) => c.name === checkOrName)
-        if (!checkConstraint)
+        const rowLevelSecurityPolicy =
+            InstanceChecker.isTableRowLevelSecurityPolicy(
+                rowLevelSecurityPolicyOrName,
+            )
+                ? rowLevelSecurityPolicyOrName
+                : table.rowLevelSecurityPolicies.find(
+                      (p) => p.name === rowLevelSecurityPolicyOrName,
+                  )
+        if (!rowLevelSecurityPolicy)
             throw new TypeORMError(
-                `Supplied check constraint was not found in table ${table.name}`,
+                `Supplied row level security policy was not found in table ${table.name}`,
             )
 
-        const up = this.dropCheckConstraintSql(table, checkConstraint)
-        const down = this.createCheckConstraintSql(table, checkConstraint)
+        const up = this.dropRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
+        const down = this.createRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
         await this.executeQueries(up, down)
-        table.removeCheckConstraint(checkConstraint)
+        table.removeRowLevelSecurityPolicy(rowLevelSecurityPolicy)
     }
 
     /**

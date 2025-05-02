@@ -1,4 +1,3 @@
-import { TableCheckOptions } from "../options/TableCheckOptions"
 import { RowLevelSecurityMetadata } from "../../metadata/RowLevelSecurityMetadata"
 import { TableRowLevelSecurityOptions } from "../options/TableRowLevelSecurityOptions"
 

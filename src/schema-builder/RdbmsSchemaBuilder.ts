@@ -17,6 +17,7 @@ import { View } from "./view/View"
 import { ViewUtils } from "./util/ViewUtils"
 import { DriverUtils } from "../driver/DriverUtils"
 import { PostgresQueryRunner } from "../driver/postgres/PostgresQueryRunner"
+import { TableRowLevelSecurityPolicy } from "./table/TableRowLevelSecurityPolicy"
 
 /**
  * Creates complete tables schemas in the database based on the entity metadatas.
@@ -1111,7 +1112,7 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
                         ),
                 )
                 .map((rlsPolicyMetadata) =>
-                    TableRlsPolicy.create(rlsPolicyMetadata),
+                    TableRowLevelSecurityPolicy.create(rlsPolicyMetadata),
                 )
 
             if (newRlsPolicies.length === 0) continue
