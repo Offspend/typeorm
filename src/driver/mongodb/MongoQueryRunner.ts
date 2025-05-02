@@ -57,6 +57,7 @@ import {
 } from "../../driver/mongodb/typings"
 import { DataSource } from "../../data-source/DataSource"
 import { ReplicationMode } from "../types/ReplicationMode"
+import { TableRowLevelSecurityPolicy } from "../../schema-builder/table/TableRowLevelSecurityPolicy"
 
 /**
  * Runs queries on a single MongoDB connection.
@@ -1036,6 +1037,54 @@ export class MongoQueryRunner implements QueryRunner {
     async dropCheckConstraints(
         tableOrName: Table | string,
         checkConstraints: TableCheck[],
+    ): Promise<void> {
+        throw new TypeORMError(
+            `Schema update queries are not supported by MongoDB driver.`,
+        )
+    }
+
+    /**
+     * Creates a new row level security policy.
+     */
+    createRowLevelSecurityPolicy(
+        table: Table | string,
+        rowLevelSecurityPolicy: TableRowLevelSecurityPolicy,
+    ): Promise<void> {
+        throw new TypeORMError(
+            `Schema update queries are not supported by MongoDB driver.`,
+        )
+    }
+
+    /**
+     * Creates a new row level security policies.
+     */
+    createRowLevelSecurityPolicies(
+        table: Table | string,
+        rowLevelSecurityPolicies: TableRowLevelSecurityPolicy[],
+    ): Promise<void> {
+        throw new TypeORMError(
+            `Schema update queries are not supported by MongoDB driver.`,
+        )
+    }
+
+    /**
+     * Drops a row level security policy.
+     */
+    dropRowLevelSecurityPolicy(
+        table: Table | string,
+        rowLevelSecurityPolicyOrName: TableRowLevelSecurityPolicy | string,
+    ): Promise<void> {
+        throw new TypeORMError(
+            `Schema update queries are not supported by MongoDB driver.`,
+        )
+    }
+
+    /**
+     * Drops row level security policies.
+     */
+    dropRowLevelSecurityPolicies(
+        table: Table | string,
+        rowLevelSecurityPolicies: TableRowLevelSecurityPolicy[],
     ): Promise<void> {
         throw new TypeORMError(
             `Schema update queries are not supported by MongoDB driver.`,
