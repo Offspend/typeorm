@@ -98,13 +98,6 @@ export interface NamingStrategyInterface {
      * type out of the box. If "true", constraint is ignored during CHECK constraints
      * synchronization.
      */
-
-    (tableOrName: Table | string, expression: string, isEnum?: boolean): string
-
-    /**
-     * Gets the name of the check constraint.
-     */
-
     checkConstraintName(
         tableOrName: Table | string,
         expression: string,
