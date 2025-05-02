@@ -108,7 +108,7 @@ export interface NamingStrategyInterface {
     checkConstraintName(
         tableOrName: Table | string,
         expression: string,
-        isEnum?: boolean | undefined,
+        isEnum?: boolean,
     ): string
 
     /**
