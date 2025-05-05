@@ -217,6 +217,7 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         await this.dropOldViews()
         await this.dropOldForeignKeys()
         await this.dropOldIndices()
+        await this.dropOldRowLevelSecurityPolicies()
         await this.dropOldChecks()
         await this.dropOldExclusions()
         await this.dropCompositeUniqueConstraints()
@@ -230,6 +231,7 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         await this.updateExistColumns()
         await this.createNewIndices()
         await this.createNewChecks()
+        await this.createNewRowLevelSecurityPolicies()
         await this.createNewExclusions()
         await this.createCompositeUniqueConstraints()
         await this.createForeignKeys()
@@ -525,6 +527,36 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
                     .join(", ")} from table "${table.name}"`,
             )
             await this.queryRunner.dropCheckConstraints(table, oldChecks)
+        }
+    }
+
+    protected async dropOldRowLevelSecurityPolicies(): Promise<void> {
+        for (const metadata of this.entityToSyncMetadatas) {
+            const table = this.queryRunner.loadedTables.find(
+                (table) =>
+                    this.getTablePath(table) === this.getTablePath(metadata),
+            )
+            if (!table) continue
+
+            const oldPolicies = table.rowLevelSecurityPolicies.filter(
+                (policy) => {
+                    return !metadata.rowLevelSecurityPolicies.find(
+                        (policyMetadata) => policyMetadata.name === policy.name,
+                    )
+                },
+            )
+
+            if (oldPolicies.length === 0) continue
+
+            this.connection.logger.logSchemaBuild(
+                `dropping old row level security policy: ${oldPolicies
+                    .map((policy) => `"${policy.name}"`)
+                    .join(", ")} from table "${table.name}"`,
+            )
+            await this.queryRunner.dropRowLevelSecurityPolicies(
+                table,
+                oldPolicies,
+            )
         }
     }
 
@@ -1107,7 +1139,6 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
     }
 
     protected async createNewRowLevelSecurityPolicies(): Promise<void> {
-        // Mysql does not support check constraints
         if (this.connection.options.type !== "postgres") return
 
         for (const metadata of this.entityToSyncMetadatas) {
