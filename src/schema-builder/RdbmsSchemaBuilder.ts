@@ -613,6 +613,20 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         }
     }
 
+    protected async changeTableRowLevelSecurity(): Promise<void> {
+        for (const metadata of this.entityToSyncMetadatas) {
+            const table = this.queryRunner.loadedTables.find(
+                (table) =>
+                    this.getTablePath(table) === this.getTablePath(metadata),
+            )
+            if (!table) continue
+
+            if (table.rowLevelSecurity) {
+                await this.queryRunner.changeTableRowLevelSecurity(table)
+            }
+        }
+    }
+
     /**
      * Creates tables that do not exist in the database yet.
      * New tables are created without foreign and primary keys.

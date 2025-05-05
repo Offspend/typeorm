@@ -724,4 +724,16 @@ export abstract class BaseQueryRunner {
             `Row level security is not supported by this driver.`,
         )
     }
+
+    /**
+     * Change table row level security. Only supports Postgres.
+     */
+    async changeTableRowLevelSecurity(
+        tableOrName: Table | string,
+        rowLevelSecurity?: true | { enabled: true; force: true },
+    ): Promise<void> {
+        throw new TypeORMError(
+            `Row level security is not supported by this driver.`,
+        )
+    }
 }

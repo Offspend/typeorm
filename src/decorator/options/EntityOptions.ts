@@ -56,5 +56,10 @@ export interface EntityOptions {
      * Enables row level security on this table. Supported only by postgres.
      * Use this with the @RowLevelSecurityPolicy decorator.
      */
-    rowLevelSecurity?: "enabled"
+    rowLevelSecurity?:
+        | true
+        | {
+              enabled: true
+              force: true
+          }
 }

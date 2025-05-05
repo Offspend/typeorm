@@ -94,6 +94,17 @@ export class Table {
      */
     comment?: string
 
+    /**
+     * Enables row level security on this table. Supported only by postgres.
+     * Use this with the @RowLevelSecurityPolicy decorator.
+     */
+    rowLevelSecurity?:
+        | true
+        | {
+              enabled: true
+              force: true
+          }
+
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
@@ -150,6 +161,8 @@ export class Table {
             this.engine = options.engine
 
             this.comment = options.comment
+
+            this.rowLevelSecurity = options.rowLevelSecurity
         }
     }
 

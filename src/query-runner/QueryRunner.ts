@@ -281,6 +281,14 @@ export interface QueryRunner {
     ): Promise<void>
 
     /**
+     * Change table row level security. Only supports Postgres.
+     */
+    changeTableRowLevelSecurity(
+        tableOrName: Table | string,
+        rowLevelSecurity?: true | { enabled: true; force: true },
+    ): Promise<void>
+
+    /**
      * Adds a new column.
      */
     addColumn(table: Table | string, column: TableColumn): Promise<void>

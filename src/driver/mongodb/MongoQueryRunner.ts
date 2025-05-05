@@ -1324,4 +1324,16 @@ export class MongoQueryRunner implements QueryRunner {
             `mongodb driver does not support change table comment.`,
         )
     }
+
+    /**
+     * Change table row level security.
+     */
+    changeTableRowLevelSecurity(
+        tableOrName: Table | string,
+        rowLevelSecurity?: true | { enabled: true; force: true },
+    ): Promise<void> {
+        throw new TypeORMError(
+            `Schema update queries are not supported by MongoDB driver.`,
+        )
+    }
 }

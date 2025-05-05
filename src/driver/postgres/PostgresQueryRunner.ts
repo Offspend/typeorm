@@ -4929,4 +4929,89 @@ export class PostgresQueryRunner
         table.comment = newTable.comment
         this.replaceCachedTable(table, newTable)
     }
+
+    /**
+     * Change table row level security.
+     */
+    async changeTableRowLevelSecurity(
+        tableOrName: Table | string,
+        rowLevelSecurity?: true | { enabled: true; force: true },
+    ): Promise<void> {
+        const upQueries: Query[] = []
+        const downQueries: Query[] = []
+
+        const table = InstanceChecker.isTable(tableOrName)
+            ? tableOrName
+            : await this.getCachedTable(tableOrName)
+
+        const previousRowLevelSecurity = table.rowLevelSecurity
+
+        const tableName = this.escapePath(table)
+
+        const upQuery = this.updateEnableRowLevelSecuritySql(
+            tableName,
+            previousRowLevelSecurity,
+            rowLevelSecurity,
+        )
+
+        const downQuery = this.updateEnableRowLevelSecuritySql(
+            tableName,
+            previousRowLevelSecurity,
+            rowLevelSecurity,
+        )
+
+        if (upQuery) {
+            upQueries.push(upQuery)
+        }
+
+        if (downQuery) {
+            downQueries.push(downQuery)
+        }
+
+        await this.executeQueries(upQueries, downQueries)
+    }
+
+    protected updateEnableRowLevelSecuritySql(
+        tableName: string,
+        previousRowLevelSecurity?: true | { enabled: true; force?: true },
+        rowLevelSecurity?: true | { enabled: true; force?: true },
+    ) {
+        const expandRowLevelSecurity = (
+            rowLevelSecurity?: true | { enabled: true; force?: true },
+        ): undefined | { enabled: true; force?: true } => {
+            if (rowLevelSecurity === true) {
+                return { enabled: true }
+            }
+            return rowLevelSecurity
+        }
+
+        const oldRowLevelSecurity = expandRowLevelSecurity(
+            previousRowLevelSecurity,
+        )
+        const newRowLevelSecurity = expandRowLevelSecurity(rowLevelSecurity)
+
+        if (
+            oldRowLevelSecurity?.enabled === newRowLevelSecurity?.enabled &&
+            oldRowLevelSecurity?.force === newRowLevelSecurity?.force
+        ) {
+            return
+        }
+
+        if (oldRowLevelSecurity?.enabled !== newRowLevelSecurity?.enabled) {
+            const sql = newRowLevelSecurity?.enabled ? `ENABLE` : `DISABLE`
+
+            return new Query(
+                `ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`,
+            )
+        }
+
+        if (oldRowLevelSecurity?.force !== newRowLevelSecurity?.force) {
+            const sql = newRowLevelSecurity?.force ? `FORCE` : `NO FORCE`
+            return new Query(
+                `ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`,
+            )
+        }
+
+        return
+    }
 }
