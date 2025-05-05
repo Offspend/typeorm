@@ -21,6 +21,7 @@ import { TreeMetadataArgs } from "./TreeMetadataArgs"
 import { UniqueMetadataArgs } from "./UniqueMetadataArgs"
 import { CheckMetadataArgs } from "./CheckMetadataArgs"
 import { ExclusionMetadataArgs } from "./ExclusionMetadataArgs"
+import { RowLevelSecurityPolicyMetadataArgs } from "./RowLevelSecurityPolicyMetadataArgs"
 
 /**
  * Storage all metadatas args of all available types: tables, columns, subscribers, relations, etc.
@@ -54,7 +55,7 @@ export class MetadataArgsStorage {
     readonly embeddeds: EmbeddedMetadataArgs[] = []
     readonly inheritances: InheritanceMetadataArgs[] = []
     readonly discriminatorValues: DiscriminatorValueMetadataArgs[] = []
-    readonly rowLevelSecurityPolicies: CheckMetadataArgs[] = []
+    readonly rowLevelSecurityPolicies: RowLevelSecurityPolicyMetadataArgs[] = []
 
     // -------------------------------------------------------------------------
     // Public Methods

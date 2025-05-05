@@ -527,6 +527,11 @@ export class EntityMetadata {
      */
     comment?: string
 
+    /**
+     * Table row level security.
+     */
+    rowLevelSecurity?: true | { enabled: true; force: true }
+
     // ---------------------------------------------------------------------
     // Constructor
     // ---------------------------------------------------------------------
@@ -1074,6 +1079,7 @@ export class EntityMetadata {
             this.tableMetadataArgs.type === "closure-junction"
 
         this.comment = this.tableMetadataArgs.comment
+        this.rowLevelSecurity = this.tableMetadataArgs.rowLevelSecurity
     }
 
     /**

@@ -231,6 +231,7 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         await this.updateExistColumns()
         await this.createNewIndices()
         await this.createNewChecks()
+        await this.changeTableRowLevelSecurity()
         await this.createNewRowLevelSecurityPolicies()
         await this.createNewExclusions()
         await this.createCompositeUniqueConstraints()
@@ -646,16 +647,22 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
     }
 
     protected async changeTableRowLevelSecurity(): Promise<void> {
+        if (this.connection.driver.options.type !== "postgres") return
+
         for (const metadata of this.entityToSyncMetadatas) {
             const table = this.queryRunner.loadedTables.find(
                 (table) =>
                     this.getTablePath(table) === this.getTablePath(metadata),
             )
+
             if (!table) continue
 
-            if (table.rowLevelSecurity) {
-                await this.queryRunner.changeTableRowLevelSecurity(table)
-            }
+            const newRowLevelSecurity = metadata.rowLevelSecurity
+
+            await this.queryRunner.changeTableRowLevelSecurity(
+                table,
+                newRowLevelSecurity,
+            )
         }
     }
 
