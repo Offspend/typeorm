@@ -1161,7 +1161,7 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
             const newRlsPolicies = metadata.rowLevelSecurityPolicies
                 .filter(
                     (rlsPolicyMetadata) =>
-                        !table.checks.find(
+                        !table.rowLevelSecurityPolicies.find(
                             (tableRlsPolicy) =>
                                 tableRlsPolicy.name === rlsPolicyMetadata.name,
                         ),
