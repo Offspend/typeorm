@@ -20,6 +20,7 @@ import { CheckMetadata } from "../metadata/CheckMetadata"
 import { ExclusionMetadata } from "../metadata/ExclusionMetadata"
 import { TypeORMError } from "../error"
 import { DriverUtils } from "../driver/DriverUtils"
+import { RowLevelSecurityPolicyMetadata } from "../metadata/RowLevelSecurityMetadata"
 
 /**
  * Builds EntityMetadata objects and all its sub-metadatas.
@@ -376,6 +377,16 @@ export class EntityMetadataBuilder {
         entityMetadatas.forEach((entityMetadata) => {
             entityMetadata.checks.forEach((check) =>
                 check.build(this.connection.namingStrategy),
+            )
+        })
+
+        // build all row level security policies
+        entityMetadatas.forEach((entityMetadata) => {
+            entityMetadata.rowLevelSecurityPolicies.forEach(
+                (rowLevelSecurityPolicy) =>
+                    rowLevelSecurityPolicy.build(
+                        this.connection.namingStrategy,
+                    ),
             )
         })
 
@@ -765,6 +776,18 @@ export class EntityMetadataBuilder {
             .map((args) => {
                 return new CheckMetadata({ entityMetadata, args })
             })
+
+        // Only PostgreSQL supports row level security policies.
+        if (this.connection.driver.options.type === "postgres") {
+            entityMetadata.rowLevelSecurityPolicies = this.metadataArgsStorage
+                .filterRowLevelSecurityPolicies(entityMetadata.inheritanceTree)
+                .map((args) => {
+                    return new RowLevelSecurityPolicyMetadata({
+                        entityMetadata,
+                        args,
+                    })
+                })
+        }
 
         // Only PostgreSQL supports exclusion constraints.
         if (this.connection.driver.options.type === "postgres") {

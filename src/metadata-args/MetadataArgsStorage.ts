@@ -184,6 +184,24 @@ export class MetadataArgsStorage {
         })
     }
 
+    filterRowLevelSecurityPolicies(
+        target: Function | string,
+    ): RowLevelSecurityPolicyMetadataArgs[]
+    filterRowLevelSecurityPolicies(
+        target: (Function | string)[],
+    ): RowLevelSecurityPolicyMetadataArgs[]
+    filterRowLevelSecurityPolicies(
+        target: (Function | string) | (Function | string)[],
+    ): RowLevelSecurityPolicyMetadataArgs[] {
+        return this.rowLevelSecurityPolicies.filter(
+            (rowLevelSecurityPolicy) => {
+                return Array.isArray(target)
+                    ? target.indexOf(rowLevelSecurityPolicy.target) !== -1
+                    : rowLevelSecurityPolicy.target === target
+            },
+        )
+    }
+
     filterExclusions(target: Function | string): ExclusionMetadataArgs[]
     filterExclusions(target: (Function | string)[]): ExclusionMetadataArgs[]
     filterExclusions(

@@ -1,4 +1,4 @@
-import { RowLevelSecurityMetadata } from "../../metadata/RowLevelSecurityMetadata"
+import { RowLevelSecurityPolicyMetadata } from "../../metadata/RowLevelSecurityMetadata"
 import { TableRowLevelSecurityOptions } from "../options/TableRowLevelSecurityOptions"
 
 /**
@@ -73,7 +73,7 @@ export class TableRowLevelSecurityPolicy {
      * Creates checks from the check metadata object.
      */
     static create(
-        rowLevelSecurityMetadata: RowLevelSecurityMetadata,
+        rowLevelSecurityMetadata: RowLevelSecurityPolicyMetadata,
     ): TableRowLevelSecurityPolicy {
         return new TableRowLevelSecurityPolicy(<TableRowLevelSecurityOptions>{
             name: rowLevelSecurityMetadata.name,

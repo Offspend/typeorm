@@ -5,7 +5,7 @@ import { RowLevelSecurityPolicyMetadataArgs } from "../metadata-args/RowLevelSec
 /**
  * RowLevelSecurity metadata contains all information about table's row level security policies.
  */
-export class RowLevelSecurityMetadata {
+export class RowLevelSecurityPolicyMetadata {
     // ---------------------------------------------------------------------
     // Public Properties
     // ---------------------------------------------------------------------
