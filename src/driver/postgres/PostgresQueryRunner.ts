@@ -3407,7 +3407,6 @@ export class PostgresQueryRunner
             `"relrowsecurity" AS table_row_level_security_enabled, "relforcerowsecurity" AS table_row_level_security_forced ` +
             `FROM "information_schema"."tables" INNER JOIN "pg_class" ON "pg_class"."relname" = "table_name" AND "pg_class"."relnamespace" = "table_schema"::regnamespace`
 
-        console.log(commonTablesSql)
         if (!tableNames) {
             dbTables.push(...(await this.query(commonTablesSql)))
         } else {
@@ -4994,9 +4993,6 @@ export class PostgresQueryRunner
         tableOrName: Table | string,
         rowLevelSecurity?: true | { enabled: true; force: true },
     ): Promise<void> {
-        const upQueries: Query[] = []
-        const downQueries: Query[] = []
-
         const table = InstanceChecker.isTable(tableOrName)
             ? tableOrName
             : await this.getCachedTable(tableOrName)
@@ -5005,25 +5001,17 @@ export class PostgresQueryRunner
 
         const tableName = this.escapePath(table)
 
-        const upQuery = this.updateEnableRowLevelSecuritySql(
+        const upQueries = this.updateEnableRowLevelSecuritySql(
             tableName,
             previousRowLevelSecurity,
             rowLevelSecurity,
         )
 
-        const downQuery = this.updateEnableRowLevelSecuritySql(
+        const downQueries = this.updateEnableRowLevelSecuritySql(
             tableName,
             previousRowLevelSecurity,
             rowLevelSecurity,
         )
-
-        if (upQuery) {
-            upQueries.push(upQuery)
-        }
-
-        if (downQuery) {
-            downQueries.push(downQuery)
-        }
 
         await this.executeQueries(upQueries, downQueries)
     }
@@ -5033,6 +5021,8 @@ export class PostgresQueryRunner
         previousRowLevelSecurity?: true | { enabled: true; force?: true },
         rowLevelSecurity?: true | { enabled: true; force?: true },
     ) {
+        const queries: Query[] = []
+
         const expandRowLevelSecurity = (
             rowLevelSecurity?: true | { enabled: true; force?: true },
         ): undefined | { enabled: true; force?: true } => {
@@ -5047,28 +5037,21 @@ export class PostgresQueryRunner
         )
         const newRowLevelSecurity = expandRowLevelSecurity(rowLevelSecurity)
 
-        if (
-            oldRowLevelSecurity?.enabled === newRowLevelSecurity?.enabled &&
-            oldRowLevelSecurity?.force === newRowLevelSecurity?.force
-        ) {
-            return
-        }
-
         if (oldRowLevelSecurity?.enabled !== newRowLevelSecurity?.enabled) {
             const sql = newRowLevelSecurity?.enabled ? `ENABLE` : `DISABLE`
 
-            return new Query(
-                `ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`,
+            queries.push(
+                new Query(`ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`),
             )
         }
 
         if (oldRowLevelSecurity?.force !== newRowLevelSecurity?.force) {
             const sql = newRowLevelSecurity?.force ? `FORCE` : `NO FORCE`
-            return new Query(
-                `ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`,
+            queries.push(
+                new Query(`ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`),
             )
         }
 
-        return
+        return queries
     }
 }

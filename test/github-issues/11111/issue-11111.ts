@@ -2,7 +2,7 @@ import "reflect-metadata"
 import {
     createTestingConnections,
     closeTestingConnections,
-    reloadTestingDatabases,
+    //   reloadTestingDatabases,
 } from "../../utils/test-utils"
 import { DataSource, EntityMetadata } from "../../../src"
 import { expect } from "chai"
@@ -17,7 +17,7 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
                 logging: true,
             })),
     )
-    beforeEach(() => reloadTestingDatabases(dataSources))
+    //  beforeEach(() => reloadTestingDatabases(dataSources))
     after(() => closeTestingConnections(dataSources))
 
     const mapAllDataSources = (
@@ -70,8 +70,8 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
         ],
     ]
 
-    cases.slice(1, 2).forEach(([rowLevelSecurity, [enabled, force]]) => {
-        it.only(`should correctly synchronize when table comment change ${
+    cases.forEach(([rowLevelSecurity, [enabled, force]]) => {
+        it(`should correctly synchronize when table comment change ${
             rowLevelSecurity?.toString() ?? "undefined"
         }`, () =>
             testSynchronize(
