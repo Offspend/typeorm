@@ -4,9 +4,10 @@ import {
     closeTestingConnections,
     //   reloadTestingDatabases,
 } from "../../utils/test-utils"
-import { DataSource, EntityMetadata } from "../../../src"
+import { DataSource, DefaultNamingStrategy, EntityMetadata } from "../../../src"
 import { expect } from "chai"
 import { Tenant } from "./entity/Tenant"
+import { stringSimilarity } from "string-similarity-js"
 
 describe.only("github issues > #11111 Row Level Security For Postgres", () => {
     let dataSources: DataSource[]
@@ -82,4 +83,64 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
                 [{ relrowsecurity: enabled, relforcerowsecurity: force }],
             ))
     })
+
+    type PartialPolicy = {
+        type?: "permissive" | "restrictive"
+        role?: string
+        expression: string
+        name?: string
+    }
+
+    const defaultPolicy: PartialPolicy = {
+        expression: "tenant_id = current_setting('app.tenant_id', true)::uuid",
+    }
+
+    //  const policies: PartialPolicy[] = [defaultPolicy]
+
+    // const policiesCases: PartialPolicy[][] = {}
+
+    const matchPolicies = (policy: PartialPolicy[], result: any[]) => {
+        const namingStrategy = new DefaultNamingStrategy()
+
+        expect(policy.length).to.be.eql(result.length)
+
+        policy.forEach((p) => {
+            const policyName =
+                p.name ??
+                namingStrategy.rowLevelSecurityPolicyName(
+                    "tenant",
+                    p.expression,
+                )
+
+            const resultPolicy = result.find(
+                (r) =>
+                    r.schemaname === "public" &&
+                    r.tablename === "tenant" &&
+                    r.policyname === policyName,
+            )
+
+            expect(resultPolicy).to.not.be.undefined
+
+            expect(resultPolicy.schemaname).to.be.eql("public")
+            expect(resultPolicy.tablename).to.be.eql("tenant")
+            expect(resultPolicy.policyname).to.be.eql(policyName)
+            expect(resultPolicy.roles).to.be.eql(`{${p.role ?? "public"}}`)
+            expect(
+                stringSimilarity(resultPolicy.qual, p.expression),
+            ).to.be.greaterThan(0.75)
+            expect(resultPolicy.with_check).to.eql(null)
+            expect(resultPolicy.permissive).to.be.eql(
+                p.type === "restrictive" ? "RESTRICTIVE" : "PERMISSIVE",
+            )
+        })
+    }
+
+    it("should do create row level security policy", () =>
+        mapAllDataSources(async (dataSource) => {
+            const sql = "SELECT * FROM pg_policies WHERE tablename = 'tenant'"
+
+            const result = await dataSource.manager.query(sql)
+
+            matchPolicies([defaultPolicy], result)
+        }))
 })

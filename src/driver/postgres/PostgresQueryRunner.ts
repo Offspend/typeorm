@@ -4043,6 +4043,8 @@ export class PostgresQueryRunner
                     tableRowLevelSecurityPolicies.map((policy) => {
                         return new TableRowLevelSecurityPolicy({
                             name: policy["policy_name"],
+                            // TODO: we should probably use expresion normilizer
+                            // For now it should work because we are using the naming strategy
                             expression: policy["qual"],
                             type:
                                 policy["permissive"] === "PERMISSIVE"
