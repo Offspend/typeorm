@@ -12,11 +12,6 @@ export interface TableRowLevelSecurityOptions {
     name?: string
 
     /**
-     * Column that contains this constraint.
-     */
-    columnNames?: string[]
-
-    /**
      * Check expression.
      */
     expression?: string

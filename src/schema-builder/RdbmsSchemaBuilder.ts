@@ -650,7 +650,6 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         if (this.connection.driver.options.type !== "postgres") return
 
         for (const metadata of this.entityToSyncMetadatas) {
-            console.log(metadata)
             const table = this.queryRunner.loadedTables.find(
                 (table) =>
                     this.getTablePath(table) === this.getTablePath(metadata),

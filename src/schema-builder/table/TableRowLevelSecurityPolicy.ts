@@ -42,7 +42,6 @@ export class TableRowLevelSecurityPolicy {
 
     constructor(options: TableRowLevelSecurityOptions) {
         this.name = options.name
-        this.columnNames = options.columnNames
         this.expression = options.expression
         this.type = options.type
         this.role = options.role

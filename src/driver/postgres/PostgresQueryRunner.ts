@@ -3398,11 +3398,18 @@ export class PostgresQueryRunner
             table_schema: string
             table_name: string
             table_comment: string
+            table_row_level_security_enabled: boolean
+            table_row_level_security_forced: boolean
         }[] = []
 
+        const commonTablesSql =
+            `SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment,` +
+            `"relrowsecurity" AS table_row_level_security_enabled, "relforcerowsecurity" AS table_row_level_security_forced ` +
+            `FROM "information_schema"."tables" INNER JOIN "pg_class" ON "pg_class"."relname" = "table_name" AND "pg_class"."relnamespace" = "table_schema"::regnamespace`
+
+        console.log(commonTablesSql)
         if (!tableNames) {
-            const tablesSql = `SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment FROM "information_schema"."tables"`
-            dbTables.push(...(await this.query(tablesSql)))
+            dbTables.push(...(await this.query(commonTablesSql)))
         } else {
             const tablesCondition = tableNames
                 .map((tableName) => this.driver.parseTableName(tableName))
@@ -3413,9 +3420,7 @@ export class PostgresQueryRunner
                 })
                 .join(" OR ")
 
-            const tablesSql =
-                `SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment FROM "information_schema"."tables" WHERE ` +
-                tablesCondition
+            const tablesSql = `${commonTablesSql} WHERE ` + tablesCondition
             dbTables.push(...(await this.query(tablesSql)))
         }
 
@@ -3510,16 +3515,28 @@ export class PostgresQueryRunner
             `INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" ` +
             `INNER JOIN "pg_attribute" "att2" ON "att2"."attrelid" = "con"."conrelid" AND "att2"."attnum" = "con"."parent"`
 
+        const rowLevelSecurityPoliciesCondition = dbTables
+            .map(({ table_schema, table_name }) => {
+                return `("schemaname" = '${table_schema}' AND "tablename" = '${table_name}')`
+            })
+            .join(" OR ")
+
+        const rowLevelSecurityPoliciesSql =
+            `SELECT schemaname as table_schema, tablename as table_name, policyname as policy_name, permissive, roles, qual ` +
+            `FROM "pg_policies" WHERE ${rowLevelSecurityPoliciesCondition}`
+
         const [
             dbColumns,
             dbConstraints,
             dbIndices,
             dbForeignKeys,
+            dbRowLevelSecurityPolicies,
         ]: ObjectLiteral[][] = await Promise.all([
             this.query(columnsSql),
             this.query(constraintsSql),
             this.query(indicesSql),
             this.query(foreignKeysSql),
+            this.query(rowLevelSecurityPoliciesSql),
         ])
 
         // create tables for loaded tables
@@ -3543,6 +3560,17 @@ export class PostgresQueryRunner
                     dbTable["table_name"],
                     schema,
                 )
+
+                if (dbTable["table_row_level_security_enabled"]) {
+                    if (dbTable["table_row_level_security_forced"]) {
+                        table.rowLevelSecurity = {
+                            enabled: true,
+                            force: true,
+                        }
+                    } else {
+                        table.rowLevelSecurity = true
+                    }
+                }
 
                 // create columns from the loaded columns
                 table.columns = await Promise.all(
@@ -3995,6 +4023,35 @@ export class PostgresQueryRunner
                         ),
                     })
                 })
+
+                // find check constraints of table, group them by constraint name and build TableCheck.
+                const tableRowLevelSecurityPolicies = OrmUtils.uniq(
+                    dbRowLevelSecurityPolicies.filter(
+                        (dbRowLevelSecurityPolicy) => {
+                            return (
+                                dbRowLevelSecurityPolicy["table_name"] ===
+                                    dbTable["table_name"] &&
+                                dbRowLevelSecurityPolicy["table_schema"] ===
+                                    dbTable["table_schema"]
+                            )
+                        },
+                    ),
+                    (dbRowLevelSecurityPolicy) =>
+                        dbRowLevelSecurityPolicy["policy_name"],
+                )
+
+                table.rowLevelSecurityPolicies =
+                    tableRowLevelSecurityPolicies.map((policy) => {
+                        return new TableRowLevelSecurityPolicy({
+                            name: policy["policy_name"],
+                            expression: policy["qual"],
+                            type:
+                                policy["permissive"] === "PERMISSIVE"
+                                    ? "permissive"
+                                    : "restrictive",
+                            role: policy["roles"],
+                        })
+                    })
 
                 // find exclusion constraints of table, group them by constraint name and build TableExclusion.
                 const tableExclusionConstraints = OrmUtils.uniq(
