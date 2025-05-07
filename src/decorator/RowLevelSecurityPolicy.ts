@@ -6,7 +6,7 @@ import { RowLevelSecurityPolicyMetadataArgs } from "../metadata-args/RowLevelSec
  * Can be used on entity property or on entity.
  * Can create checks with composite columns when used on entity.
  */
-export function RowLevelPolicy({
+export function RowLevelSecurityPolicy({
     role,
     expression,
     type,

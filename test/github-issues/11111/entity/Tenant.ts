@@ -1,10 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "../../../../src"
-import { RowLevelPolicy } from "../../../../src"
+import { RowLevelSecurityPolicy } from "../../../../src"
 
 @Entity({
     rowLevelSecurity: true,
 })
-@RowLevelPolicy({
+@RowLevelSecurityPolicy({
     expression: "tenant_id = current_setting('app.tenant_id', true)::uuid",
 })
 export class Tenant {
