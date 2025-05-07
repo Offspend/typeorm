@@ -110,6 +110,8 @@ export interface NamingStrategyInterface {
     rowLevelSecurityPolicyName(
         tableOrName: Table | string,
         expression: string,
+        role?: string,
+        type?: "permissive" | "restrictive",
     ): string
 
     /**

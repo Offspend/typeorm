@@ -24,7 +24,7 @@ export class TableRowLevelSecurityPolicy {
     /**
      *  RLS expression
      */
-    expression?: string
+    expression: string
 
     /**
      * Type of the row level security policy.

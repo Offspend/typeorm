@@ -80,6 +80,8 @@ export class RowLevelSecurityPolicyMetadata {
             : namingStrategy.rowLevelSecurityPolicyName(
                   this.entityMetadata.tableName,
                   this.expression,
+                  this.role,
+                  this.type,
               )
         return this
     }

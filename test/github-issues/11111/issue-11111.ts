@@ -145,6 +145,8 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
                 namingStrategy.rowLevelSecurityPolicyName(
                     "tenant",
                     p.expression,
+                    p.role,
+                    p.type,
                 )
 
             const resultPolicy = result.find(

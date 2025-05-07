@@ -2806,7 +2806,9 @@ export class PostgresQueryRunner
             rowLevelSecurityPolicy.name =
                 this.connection.namingStrategy.rowLevelSecurityPolicyName(
                     table,
-                    rowLevelSecurityPolicy.expression!,
+                    rowLevelSecurityPolicy.expression,
+                    rowLevelSecurityPolicy.role,
+                    rowLevelSecurityPolicy.type,
                 )
 
         const up = this.createRowLevelSecurityPolicySql(

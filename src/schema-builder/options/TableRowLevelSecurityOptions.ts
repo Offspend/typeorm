@@ -12,9 +12,9 @@ export interface TableRowLevelSecurityOptions {
     name?: string
 
     /**
-     * Check expression.
+     * Row level security policy expression.
      */
-    expression?: string
+    expression: string
 
     /**
      * Type of the row level security policy.
