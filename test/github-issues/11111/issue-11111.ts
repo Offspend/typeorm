@@ -12,14 +12,14 @@ import { RowLevelSecurityPolicyMetadataArgs } from "../../../src/metadata-args/R
 import { RowLevelSecurityPolicyMetadata } from "../../../src/metadata/RowLevelSecurityMetadata"
 
 function allCombinations<T>(arr: T[]): T[][] {
-    return arr.reduce(
-        (acc, item) => {
-            return acc.concat(
-                allCombinations(arr.slice(1)).map((r) => [item, ...r]),
-            )
-        },
-        [[]] as T[][],
+    if (arr.length === 0) return [[]]
+
+    const [first, ...rest] = arr
+    const combinationsWithoutFirst = allCombinations(rest)
+    const combinationsWithFirst = combinationsWithoutFirst.map(
+        (combination) => [first, ...combination],
     )
+    return [...combinationsWithoutFirst, ...combinationsWithFirst]
 }
 
 describe.only("github issues > #11111 Row Level Security For Postgres", () => {
@@ -28,7 +28,7 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
         async () =>
             (dataSources = await createTestingConnections({
                 entities: [Tenant],
-                logging: true,
+                // logging: true,
             })),
     )
     //  beforeEach(() => reloadTestingDatabases(dataSources))
@@ -126,6 +126,10 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
             ...defaultPolicy,
             type: "restrictive",
             role: "test",
+        },
+        {
+            ...defaultPolicy,
+            expression: "TRUE",
         },
     ]
 
