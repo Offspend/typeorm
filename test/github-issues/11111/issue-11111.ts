@@ -8,6 +8,19 @@ import { DataSource, DefaultNamingStrategy, EntityMetadata } from "../../../src"
 import { expect } from "chai"
 import { Tenant } from "./entity/Tenant"
 import { stringSimilarity } from "string-similarity-js"
+import { RowLevelSecurityPolicyMetadataArgs } from "../../../src/metadata-args/RowLevelSecurityPolicyMetadataArgs"
+import { RowLevelSecurityPolicyMetadata } from "../../../src/metadata/RowLevelSecurityMetadata"
+
+function allCombinations<T>(arr: T[]): T[][] {
+    return arr.reduce(
+        (acc, item) => {
+            return acc.concat(
+                allCombinations(arr.slice(1)).map((r) => [item, ...r]),
+            )
+        },
+        [[]] as T[][],
+    )
+}
 
 describe.only("github issues > #11111 Row Level Security For Postgres", () => {
     let dataSources: DataSource[]
@@ -30,14 +43,14 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
     const testSynchronize = (
         entityMetadataMutator: (entityMetadata: EntityMetadata) => void,
         assertingSql: string,
-        assertingResult: any[],
+        assertingResult: (result: any[]) => void,
     ): Promise<void[]> =>
         mapAllDataSources(async (dataSource) => {
             const entityMetadata = dataSource.getMetadata(Tenant)
             entityMetadataMutator(entityMetadata)
             await dataSource.synchronize()
             const result = await dataSource.manager.query(assertingSql)
-            expect(result).to.be.eql(assertingResult)
+            assertingResult(result)
         })
 
     it("should do enable row level security", () =>
@@ -80,7 +93,11 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
                     entityMetadata.rowLevelSecurity = rowLevelSecurity
                 },
                 "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'tenant'",
-                [{ relrowsecurity: enabled, relforcerowsecurity: force }],
+                (result) => {
+                    expect(result).to.be.eql([
+                        { relrowsecurity: enabled, relforcerowsecurity: force },
+                    ])
+                },
             ))
     })
 
@@ -91,13 +108,31 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
         name?: string
     }
 
-    const defaultPolicy: PartialPolicy = {
+    const defaultPolicy: Omit<RowLevelSecurityPolicyMetadataArgs, "target"> = {
         expression: "tenant_id = current_setting('app.tenant_id', true)::uuid",
     }
 
-    //  const policies: PartialPolicy[] = [defaultPolicy]
+    const policies: Omit<RowLevelSecurityPolicyMetadataArgs, "target">[] = [
+        defaultPolicy,
+        {
+            ...defaultPolicy,
+            type: "restrictive",
+        },
+        {
+            ...defaultPolicy,
+            type: "permissive",
+        },
+        {
+            ...defaultPolicy,
+            type: "restrictive",
+            role: "test",
+        },
+    ]
 
-    // const policiesCases: PartialPolicy[][] = {}
+    const policiesCases: Omit<
+        RowLevelSecurityPolicyMetadataArgs,
+        "target"
+    >[][] = allCombinations(policies)
 
     const matchPolicies = (policy: PartialPolicy[], result: any[]) => {
         const namingStrategy = new DefaultNamingStrategy()
@@ -143,4 +178,38 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
 
             matchPolicies([defaultPolicy], result)
         }))
+
+    policiesCases.forEach((policies, item) => {
+        it(`should do create row level security policy (case ${
+            item + 1
+        })`, async () => {
+            const namingStrategy = new DefaultNamingStrategy()
+            await testSynchronize(
+                (entityMetadata) => {
+                    //pretty print policies as an table
+                    console.table(
+                        policies.map((p) => ({
+                            ...p,
+                            target: "tenant",
+                        })),
+                    )
+
+                    entityMetadata.rowLevelSecurityPolicies = policies.map(
+                        (policy) =>
+                            new RowLevelSecurityPolicyMetadata({
+                                entityMetadata,
+                                args: {
+                                    ...policy,
+                                    target: "tenant",
+                                },
+                            }).build(namingStrategy),
+                    )
+                },
+                "SELECT * FROM pg_policies WHERE tablename = 'tenant'",
+                (result) => {
+                    matchPolicies(policies, result)
+                },
+            )
+        })
+    })
 })
