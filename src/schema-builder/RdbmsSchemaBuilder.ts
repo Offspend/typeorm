@@ -658,8 +658,6 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
             if (!table) continue
 
             const newRowLevelSecurity = metadata.rowLevelSecurity
-            console.log(table.rowLevelSecurity)
-            console.log(newRowLevelSecurity)
 
             await this.queryRunner.changeTableRowLevelSecurity(
                 table,

@@ -2,7 +2,7 @@ import "reflect-metadata"
 import {
     createTestingConnections,
     closeTestingConnections,
-    //   reloadTestingDatabases,
+    reloadTestingDatabases,
 } from "../../utils/test-utils"
 import { DataSource, DefaultNamingStrategy, EntityMetadata } from "../../../src"
 import { expect } from "chai"
@@ -22,7 +22,7 @@ function allCombinations<T>(arr: T[]): T[][] {
     return [...combinationsWithoutFirst, ...combinationsWithFirst]
 }
 
-describe.only("github issues > #11111 Row Level Security For Postgres", () => {
+describe("github issues > #11111 Row Level Security For Postgres", () => {
     let dataSources: DataSource[]
     before(
         async () =>
@@ -31,7 +31,7 @@ describe.only("github issues > #11111 Row Level Security For Postgres", () => {
                 // logging: true,
             })),
     )
-    //  beforeEach(() => reloadTestingDatabases(dataSources))
+    beforeEach(() => reloadTestingDatabases(dataSources))
     after(() => closeTestingConnections(dataSources))
 
     const mapAllDataSources = (
