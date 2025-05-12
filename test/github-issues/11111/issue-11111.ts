@@ -7,9 +7,11 @@ import {
 import { DataSource, DefaultNamingStrategy, EntityMetadata } from "../../../src"
 import { expect } from "chai"
 import { Tenant } from "./entity/Tenant"
+import { RowLevelSecurityPolicyMetadata } from "../../../src/metadata/RowLevelSecurityMetadata"
+import { Company } from "./entity/Company"
+import { CompanyForced } from "./entity/CompanyForced"
 import { stringSimilarity } from "string-similarity-js"
 import { RowLevelSecurityPolicyMetadataArgs } from "../../../src/metadata-args/RowLevelSecurityPolicyMetadataArgs"
-import { RowLevelSecurityPolicyMetadata } from "../../../src/metadata/RowLevelSecurityMetadata"
 
 function allCombinations<T>(arr: T[]): T[][] {
     if (arr.length === 0) return [[]]
@@ -27,7 +29,7 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
     before(
         async () =>
             (dataSources = await createTestingConnections({
-                entities: [Tenant],
+                entities: [Tenant, Company, CompanyForced],
                 // logging: true,
             })),
     )
@@ -53,13 +55,37 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
             assertingResult(result)
         })
 
-    it("should do enable row level security", () =>
+    it("should do enable row level security via @Entity decorator", () =>
         mapAllDataSources(async (dataSource) => {
             const sql =
-                "SELECT relrowsecurity FROM pg_class WHERE relname = 'tenant'"
+                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'tenant'"
 
             const result = await dataSource.manager.query(sql)
-            expect(result).to.be.eql([{ relrowsecurity: true }])
+            expect(result).to.be.eql([
+                { relrowsecurity: true, relforcerowsecurity: false },
+            ])
+        }))
+
+    it("should do enable row level security via @RowLevelSecurity decorator", () =>
+        mapAllDataSources(async (dataSource) => {
+            const sql =
+                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'company'"
+
+            const result = await dataSource.manager.query(sql)
+            expect(result).to.be.eql([
+                { relrowsecurity: true, relforcerowsecurity: false },
+            ])
+        }))
+
+    it("should do enable row level security via @RowLevelSecurity decorator with force option", () =>
+        mapAllDataSources(async (dataSource) => {
+            const sql =
+                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'company_forced'"
+
+            const result = await dataSource.manager.query(sql)
+            expect(result).to.be.eql([
+                { relrowsecurity: true, relforcerowsecurity: true },
+            ])
         }))
 
     const cases: [
