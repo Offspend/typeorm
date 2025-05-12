@@ -4052,7 +4052,8 @@ export class PostgresQueryRunner
                                 policy["permissive"] === "PERMISSIVE"
                                     ? "permissive"
                                     : "restrictive",
-                            role: policy["roles"],
+                            //remove surrounding braces
+                            role: policy["roles"].replace(/^\{|\}$/g, ""),
                         })
                     })
 
