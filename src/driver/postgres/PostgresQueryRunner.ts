@@ -3405,9 +3405,11 @@ export class PostgresQueryRunner
         }[] = []
 
         const commonTablesSql =
-            `SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment,` +
-            `"relrowsecurity" AS table_row_level_security_enabled, "relforcerowsecurity" AS table_row_level_security_forced ` +
-            `FROM "information_schema"."tables" INNER JOIN "pg_class" ON "pg_class"."relname" = "table_name" AND "pg_class"."relnamespace" = "table_schema"::regnamespace`
+            `SELECT t."table_schema", t."table_name", obj_description(('"' || t."table_schema" || '"."' || t."table_name" || '"')::regclass, 'pg_class') AS table_comment,` +
+            `c."relrowsecurity" AS table_row_level_security_enabled, c."relforcerowsecurity" AS table_row_level_security_forced ` +
+            `FROM "information_schema"."tables" t ` +
+            `INNER JOIN "pg_namespace" n ON n."nspname" = t."table_schema" ` +
+            `INNER JOIN "pg_class" c ON c."relname" = t."table_name" AND c."relnamespace" = n."oid"`
 
         if (!tableNames) {
             dbTables.push(...(await this.query(commonTablesSql)))
