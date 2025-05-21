@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "../../../../src"
-import { RowLevelSecurity } from "../../../../src/decorator/entity/RowLevelSecurity"
+import { EnableRowLevelSecurity } from "../../../../src/decorator/entity/EnableRowLevelSecurity"
 
-@RowLevelSecurity({ force: true })
+@EnableRowLevelSecurity({ force: true })
 @Entity()
 export class CompanyForced {
     @PrimaryGeneratedColumn()

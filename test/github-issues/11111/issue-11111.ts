@@ -12,7 +12,7 @@ import { Company } from "./entity/Company"
 import { CompanyForced } from "./entity/CompanyForced"
 import { stringSimilarity } from "string-similarity-js"
 import { RowLevelSecurityPolicyMetadataArgs } from "../../../src/metadata-args/RowLevelSecurityPolicyMetadataArgs"
-
+import { Inherited } from "./entity/Inherited"
 function allCombinations<T>(arr: T[]): T[][] {
     if (arr.length === 0) return [[]]
 
@@ -29,7 +29,7 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
     before(
         async () =>
             (dataSources = await createTestingConnections({
-                entities: [Tenant, Company, CompanyForced],
+                entities: [Tenant, Company, CompanyForced, Inherited],
                 // logging: true,
             })),
     )
@@ -70,6 +70,17 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
         mapAllDataSources(async (dataSource) => {
             const sql =
                 "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'company'"
+
+            const result = await dataSource.manager.query(sql)
+            expect(result).to.be.eql([
+                { relrowsecurity: true, relforcerowsecurity: false },
+            ])
+        }))
+
+    it("should do enable row level security via @RowLevelSecurity decorator on inherited class", () =>
+        mapAllDataSources(async (dataSource) => {
+            const sql =
+                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'inherited'"
 
             const result = await dataSource.manager.query(sql)
             expect(result).to.be.eql([

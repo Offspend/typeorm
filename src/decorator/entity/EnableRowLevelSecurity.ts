@@ -6,7 +6,15 @@ import { getMetadataArgsStorage } from "../../globals"
  * Can be used on entity property or on entity.
  * Can create checks with composite columns when used on entity.
  */
-export function RowLevelSecurity(options?: {
+
+export type RowLevelSecurityOptions =
+    | true
+    | {
+          enabled: true
+          force: true
+      }
+
+export function EnableRowLevelSecurity(options?: {
     force: true
 }): ClassDecorator & PropertyDecorator {
     return function (
@@ -17,16 +25,21 @@ export function RowLevelSecurity(options?: {
             ? clsOrObject.constructor
             : (clsOrObject as Function)
 
+        const rowLevelSecurityOptions: RowLevelSecurityOptions = options?.force
+            ? { enabled: true, force: true }
+            : true
+
         const table = getMetadataArgsStorage().tables.find(
             (table: TableMetadataArgs) => table.target === target,
         )
 
         if (!table) {
-            throw new Error("Table not found")
-        }
-
-        table.rowLevelSecurity = options?.force
-            ? { enabled: true, force: true }
-            : true
+            const targetWithRowLevelSecurityOptions =
+                target as typeof target & {
+                    _rowLevelSecurityOptions: RowLevelSecurityOptions
+                }
+            targetWithRowLevelSecurityOptions._rowLevelSecurityOptions =
+                rowLevelSecurityOptions
+        } else table.rowLevelSecurity = rowLevelSecurityOptions
     }
 }
