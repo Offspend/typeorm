@@ -13,6 +13,7 @@ import { CompanyForced } from "./entity/CompanyForced"
 import { stringSimilarity } from "string-similarity-js"
 import { RowLevelSecurityPolicyMetadataArgs } from "../../../src/metadata-args/RowLevelSecurityPolicyMetadataArgs"
 import { Inherited } from "./entity/Inherited"
+import { ViewBase, ViewInherited } from "./entity/ViewInherited"
 function allCombinations<T>(arr: T[]): T[][] {
     if (arr.length === 0) return [[]]
 
@@ -29,7 +30,14 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
     before(
         async () =>
             (dataSources = await createTestingConnections({
-                entities: [Tenant, Company, CompanyForced, Inherited],
+                entities: [
+                    Tenant,
+                    Company,
+                    CompanyForced,
+                    Inherited,
+                    ViewBase,
+                    ViewInherited,
+                ],
                 // logging: true,
             })),
     )
@@ -96,6 +104,25 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
             const result = await dataSource.manager.query(sql)
             expect(result).to.be.eql([
                 { relrowsecurity: true, relforcerowsecurity: true },
+            ])
+        }))
+
+    it.only("should do enable security_invoker=true when @ViewEntity has parent with@EnableRowLevelSecurity decorator", () =>
+        mapAllDataSources(async (dataSource) => {
+            const sql =
+                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'view_base'"
+
+            const result = await dataSource.manager.query(sql)
+            expect(result).to.be.eql([
+                { relrowsecurity: true, relforcerowsecurity: false },
+            ])
+
+            const viewSql =
+                "SELECT reloptions FROM pg_class WHERE relname = 'view_inherited'"
+
+            const viewResult = await dataSource.manager.query(viewSql)
+            expect(viewResult).to.be.eql([
+                { reloptions: ["security_invoker=true"] },
             ])
         }))
 

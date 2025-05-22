@@ -3328,7 +3328,7 @@ export class PostgresQueryRunner
             `WHERE "t"."relkind" IN ('m') AND "cnst"."contype" IS NULL AND (${constraintsCondition})`
 
         const query =
-            `SELECT "t".*, 'security_invoker=true' = ANY("t".reloptions) AS "secured" FROM ${this.escapePath(
+            `SELECT "t".*, 'security_invoker=true' = ANY("c".reloptions) AS "secured" FROM ${this.escapePath(
                 this.getTypeormMetadataTableName(),
             )} "t" ` +
             `INNER JOIN "pg_catalog"."pg_class" "c" ON "c"."relname" = "t"."name" ` +
@@ -4338,9 +4338,7 @@ export class PostgresQueryRunner
     protected createViewSql(view: View): Query {
         const materializedClause = view.materialized ? "MATERIALIZED " : ""
         const securedClause =
-            view.secured && !view.materialized
-                ? "WITH (security_invoker=true) "
-                : ""
+            view.secured && !view.materialized ? "WITH (security_invoker) " : ""
         const viewName = this.escapePath(view)
 
         if (typeof view.expression === "string") {

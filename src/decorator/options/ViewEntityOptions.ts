@@ -43,4 +43,9 @@ export interface ViewEntityOptions {
      * to ensure correct order of view migrations.
      */
     dependsOn?: (Function | string)[]
+
+    /**
+     * Indicates if view should be secured.
+     */
+    secured?: boolean
 }

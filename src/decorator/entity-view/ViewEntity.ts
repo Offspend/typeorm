@@ -46,6 +46,7 @@ export function ViewEntity(
             schema: options.schema ? options.schema : undefined,
             synchronize: options.synchronize === false ? false : true,
             materialized: !!options.materialized,
+            secured: options.secured ?? true,
         } as TableMetadataArgs)
     }
 }

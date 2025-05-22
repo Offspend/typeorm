@@ -122,7 +122,7 @@ export class View {
             ),
             expression: entityMetadata.expression!,
             materialized: entityMetadata.tableMetadataArgs.materialized,
-            secured: !!entityMetadata.tableMetadataArgs.rowLevelSecurity,
+            secured: !!entityMetadata.tableMetadataArgs.secured,
         }
 
         return new View(options)

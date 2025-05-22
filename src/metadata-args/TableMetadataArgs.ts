@@ -86,4 +86,9 @@ export interface TableMetadataArgs {
               enabled: true
               force: true
           }
+
+    /**
+     * Indicates if view is secured.
+     */
+    secured?: boolean
 }
