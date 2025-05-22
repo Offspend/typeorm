@@ -3317,7 +3317,7 @@ export class PostgresQueryRunner
         const indicesSql =
             `SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "i"."relname" AS "constraint_name", "a"."attname" AS "column_name", ` +
             `CASE "ix"."indisunique" WHEN 't' THEN 'TRUE' ELSE'FALSE' END AS "is_unique", pg_get_expr("ix"."indpred", "ix"."indrelid") AS "condition", ` +
-            `"types"."typname" AS "type_name" ` +
+            `"types"."typname" AS "type_name"` +
             `FROM "pg_class" "t" ` +
             `INNER JOIN "pg_index" "ix" ON "ix"."indrelid" = "t"."oid" ` +
             `INNER JOIN "pg_attribute" "a" ON "a"."attrelid" = "t"."oid"  AND "a"."attnum" = ANY ("ix"."indkey") ` +
@@ -3328,7 +3328,7 @@ export class PostgresQueryRunner
             `WHERE "t"."relkind" IN ('m') AND "cnst"."contype" IS NULL AND (${constraintsCondition})`
 
         const query =
-            `SELECT "t".* FROM ${this.escapePath(
+            `SELECT "t".*, 'security_invoker=true' = ANY("t".reloptions) AS "secured" FROM ${this.escapePath(
                 this.getTypeormMetadataTableName(),
             )} "t" ` +
             `INNER JOIN "pg_catalog"."pg_class" "c" ON "c"."relname" = "t"."name" ` +
@@ -3380,6 +3380,7 @@ export class PostgresQueryRunner
                     isFulltext: false,
                 })
             })
+            view.secured = dbView["secured"]
             return view
         })
     }
@@ -4336,15 +4337,19 @@ export class PostgresQueryRunner
 
     protected createViewSql(view: View): Query {
         const materializedClause = view.materialized ? "MATERIALIZED " : ""
+        const securedClause =
+            view.secured && !view.materialized
+                ? "WITH (security_invoker=true) "
+                : ""
         const viewName = this.escapePath(view)
 
         if (typeof view.expression === "string") {
             return new Query(
-                `CREATE ${materializedClause}VIEW ${viewName} AS ${view.expression}`,
+                `CREATE ${materializedClause}VIEW ${viewName} ${securedClause}AS ${view.expression}`,
             )
         } else {
             return new Query(
-                `CREATE ${materializedClause}VIEW ${viewName} AS ${view
+                `CREATE ${materializedClause}VIEW ${viewName} ${securedClause}AS ${view
                     .expression(this.connection)
                     .getQuery()}`,
             )
