@@ -47,6 +47,11 @@ export class View {
      */
     expression: string | ((connection: DataSource) => SelectQueryBuilder<any>)
 
+    /**
+     * Indicates if view is secured
+     */
+    secured: boolean
+
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
@@ -59,6 +64,7 @@ export class View {
             this.name = options.name
             this.expression = options.expression
             this.materialized = !!options.materialized
+            this.secured = !!options.secured
         }
     }
 
@@ -116,6 +122,7 @@ export class View {
             ),
             expression: entityMetadata.expression!,
             materialized: entityMetadata.tableMetadataArgs.materialized,
+            secured: !!entityMetadata.tableMetadataArgs.secured,
         }
 
         return new View(options)

@@ -145,6 +145,18 @@ export class DefaultNamingStrategy implements NamingStrategyInterface {
         return isEnum ? `${name}_ENUM` : name
     }
 
+    rowLevelSecurityPolicyName(
+        tableOrName: Table | string,
+        expression: string,
+        role?: string,
+        type?: "permissive" | "restrictive",
+    ): string {
+        const tableName = this.getTableName(tableOrName)
+        const replacedTableName = tableName.replace(".", "_")
+        const key = `${replacedTableName}_${role}_${type}_${expression}`
+        return "RLSP_" + RandomGenerator.sha1(key).substr(0, 26)
+    }
+
     exclusionConstraintName(
         tableOrName: Table | string,
         expression: string,

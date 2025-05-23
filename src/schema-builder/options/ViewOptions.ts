@@ -31,6 +31,10 @@ export interface ViewOptions {
     /**
      * Indicates if view is materialized
      */
-
     materialized?: boolean
+
+    /**
+     * Indicates if view is secured
+     */
+    secured?: boolean
 }

@@ -17,6 +17,7 @@ import { View } from "./view/View"
 import { ViewUtils } from "./util/ViewUtils"
 import { DriverUtils } from "../driver/DriverUtils"
 import { PostgresQueryRunner } from "../driver/postgres/PostgresQueryRunner"
+import { TableRowLevelSecurityPolicy } from "./table/TableRowLevelSecurityPolicy"
 
 /**
  * Creates complete tables schemas in the database based on the entity metadatas.
@@ -216,6 +217,7 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         await this.dropOldViews()
         await this.dropOldForeignKeys()
         await this.dropOldIndices()
+        await this.dropOldRowLevelSecurityPolicies()
         await this.dropOldChecks()
         await this.dropOldExclusions()
         await this.dropCompositeUniqueConstraints()
@@ -229,6 +231,8 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         await this.updateExistColumns()
         await this.createNewIndices()
         await this.createNewChecks()
+        await this.changeTableRowLevelSecurity()
+        await this.createNewRowLevelSecurityPolicies()
         await this.createNewExclusions()
         await this.createCompositeUniqueConstraints()
         await this.createForeignKeys()
@@ -527,6 +531,36 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
         }
     }
 
+    protected async dropOldRowLevelSecurityPolicies(): Promise<void> {
+        for (const metadata of this.entityToSyncMetadatas) {
+            const table = this.queryRunner.loadedTables.find(
+                (table) =>
+                    this.getTablePath(table) === this.getTablePath(metadata),
+            )
+            if (!table) continue
+
+            const oldPolicies = table.rowLevelSecurityPolicies.filter(
+                (policy) => {
+                    return !metadata.rowLevelSecurityPolicies.find(
+                        (policyMetadata) => policyMetadata.name === policy.name,
+                    )
+                },
+            )
+
+            if (oldPolicies.length === 0) continue
+
+            this.connection.logger.logSchemaBuild(
+                `dropping old row level security policy: ${oldPolicies
+                    .map((policy) => `"${policy.name}"`)
+                    .join(", ")} from table "${table.name}"`,
+            )
+            await this.queryRunner.dropRowLevelSecurityPolicies(
+                table,
+                oldPolicies,
+            )
+        }
+    }
+
     protected async dropCompositeUniqueConstraints(): Promise<void> {
         for (const metadata of this.entityToSyncMetadatas) {
             const table = this.queryRunner.loadedTables.find(
@@ -604,11 +638,31 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
 
             if (
                 DriverUtils.isMySQLFamily(this.connection.driver) ||
-                this.connection.driver.options.type === 'postgres'
+                this.connection.driver.options.type === "postgres"
             ) {
                 const newComment = metadata.comment
                 await this.queryRunner.changeTableComment(table, newComment)
             }
+        }
+    }
+
+    protected async changeTableRowLevelSecurity(): Promise<void> {
+        if (this.connection.driver.options.type !== "postgres") return
+
+        for (const metadata of this.entityToSyncMetadatas) {
+            const table = this.queryRunner.loadedTables.find(
+                (table) =>
+                    this.getTablePath(table) === this.getTablePath(metadata),
+            )
+
+            if (!table) continue
+
+            const newRowLevelSecurity = metadata.rowLevelSecurity
+
+            await this.queryRunner.changeTableRowLevelSecurity(
+                table,
+                newRowLevelSecurity,
+            )
         }
     }
 
@@ -1088,6 +1142,42 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
                     .join(", ")} in table "${table.name}"`,
             )
             await this.queryRunner.createCheckConstraints(table, newChecks)
+        }
+    }
+
+    protected async createNewRowLevelSecurityPolicies(): Promise<void> {
+        if (this.connection.options.type !== "postgres") return
+
+        for (const metadata of this.entityToSyncMetadatas) {
+            const table = this.queryRunner.loadedTables.find(
+                (table) =>
+                    this.getTablePath(table) === this.getTablePath(metadata),
+            )
+            if (!table) continue
+
+            const newRlsPolicies = metadata.rowLevelSecurityPolicies
+                .filter(
+                    (rlsPolicyMetadata) =>
+                        !table.rowLevelSecurityPolicies.find(
+                            (tableRlsPolicy) =>
+                                tableRlsPolicy.name === rlsPolicyMetadata.name,
+                        ),
+                )
+                .map((rlsPolicyMetadata) =>
+                    TableRowLevelSecurityPolicy.create(rlsPolicyMetadata),
+                )
+
+            if (newRlsPolicies.length === 0) continue
+
+            this.connection.logger.logSchemaBuild(
+                `adding new row level security policies: ${newRlsPolicies
+                    .map((index) => `"${index.name}"`)
+                    .join(", ")} in table "${table.name}"`,
+            )
+            await this.queryRunner.createRowLevelSecurityPolicies(
+                table,
+                newRlsPolicies,
+            )
         }
     }
 

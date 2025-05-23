@@ -8,6 +8,7 @@ import { TableUtils } from "../util/TableUtils"
 import { TableUnique } from "./TableUnique"
 import { TableCheck } from "./TableCheck"
 import { TableExclusion } from "./TableExclusion"
+import { TableRowLevelSecurityPolicy } from "./TableRowLevelSecurityPolicy"
 
 /**
  * Table in the database represented in this class.
@@ -62,6 +63,11 @@ export class Table {
     checks: TableCheck[] = []
 
     /**
+     * Table row level security policies.
+     */
+    rowLevelSecurityPolicies: TableRowLevelSecurityPolicy[] = []
+
+    /**
      * Table exclusion constraints.
      */
     exclusions: TableExclusion[] = []
@@ -87,6 +93,17 @@ export class Table {
      * Table comment. Not supported by all database types.
      */
     comment?: string
+
+    /**
+     * Enables row level security on this table. Supported only by postgres.
+     * Use this with the @RowLevelSecurityPolicy decorator.
+     */
+    rowLevelSecurity?:
+        | true
+        | {
+              enabled: true
+              force: true
+          }
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -144,6 +161,8 @@ export class Table {
             this.engine = options.engine
 
             this.comment = options.comment
+
+            this.rowLevelSecurity = options.rowLevelSecurity
         }
     }
 
@@ -245,6 +264,34 @@ export class Table {
         )
         if (foundCheck) {
             this.checks.splice(this.checks.indexOf(foundCheck), 1)
+        }
+    }
+
+    /**
+     * Adds row level security policy.
+     */
+    addRowLevelSecurityPolicy(
+        rowLevelSecurityPolicy: TableRowLevelSecurityPolicy,
+    ): void {
+        this.rowLevelSecurityPolicies.push(rowLevelSecurityPolicy)
+    }
+
+    /**
+     * Removes row level security policy    .
+     */
+    removeRowLevelSecurityPolicy(
+        removedRowLevelSecurityPolicy: TableRowLevelSecurityPolicy,
+    ): void {
+        const foundRowLevelSecurityPolicy = this.rowLevelSecurityPolicies.find(
+            (policy) => policy.name === removedRowLevelSecurityPolicy.name,
+        )
+        if (foundRowLevelSecurityPolicy) {
+            this.rowLevelSecurityPolicies.splice(
+                this.rowLevelSecurityPolicies.indexOf(
+                    foundRowLevelSecurityPolicy,
+                ),
+                1,
+            )
         }
     }
 

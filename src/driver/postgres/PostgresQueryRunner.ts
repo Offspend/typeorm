@@ -27,6 +27,7 @@ import { MetadataTableType } from "../types/MetadataTableType"
 import { ReplicationMode } from "../types/ReplicationMode"
 import { PostgresDriver } from "./PostgresDriver"
 import { BroadcasterResult } from "../../subscriber/BroadcasterResult"
+import { TableRowLevelSecurityPolicy } from "../../schema-builder/table/TableRowLevelSecurityPolicy"
 
 /**
  * Runs queries on a single postgres database connection.
@@ -601,10 +602,22 @@ export class PostgresQueryRunner
                 downQueries.push(this.dropIndexSql(table, index))
             })
         }
-        
+
         if (table.comment) {
-            upQueries.push(new Query("COMMENT ON TABLE " + this.escapePath(table) + " IS '" + table.comment + "'"));
-            downQueries.push(new Query("COMMENT ON TABLE " + this.escapePath(table) + " IS NULL"));
+            upQueries.push(
+                new Query(
+                    "COMMENT ON TABLE " +
+                        this.escapePath(table) +
+                        " IS '" +
+                        table.comment +
+                        "'",
+                ),
+            )
+            downQueries.push(
+                new Query(
+                    "COMMENT ON TABLE " + this.escapePath(table) + " IS NULL",
+                ),
+            )
         }
 
         await this.executeQueries(upQueries, downQueries)
@@ -940,7 +953,7 @@ export class PostgresQueryRunner
         const enumColumns = newTable.columns.filter(
             (column) => column.type === "enum" || column.type === "simple-enum",
         )
-        for (let column of enumColumns) {
+        for (const column of enumColumns) {
             // skip renaming for user-defined enum name
             if (column.enumName) continue
 
@@ -2778,6 +2791,108 @@ export class PostgresQueryRunner
     }
 
     /**
+     * Creates new check constraint.
+     */
+    async createRowLevelSecurityPolicy(
+        tableOrName: Table | string,
+        rowLevelSecurityPolicy: TableRowLevelSecurityPolicy,
+    ): Promise<void> {
+        const table = InstanceChecker.isTable(tableOrName)
+            ? tableOrName
+            : await this.getCachedTable(tableOrName)
+
+        // new policy may be passed without name. In this case we generate unique name manually.
+        if (!rowLevelSecurityPolicy.name)
+            rowLevelSecurityPolicy.name =
+                this.connection.namingStrategy.rowLevelSecurityPolicyName(
+                    table,
+                    rowLevelSecurityPolicy.expression,
+                    rowLevelSecurityPolicy.role,
+                    rowLevelSecurityPolicy.type,
+                )
+
+        const up = this.createRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
+        const down = this.dropRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
+        await this.executeQueries(up, down)
+        table.addRowLevelSecurityPolicy(rowLevelSecurityPolicy)
+    }
+
+    /**
+     * Creates new check constraints.
+     */
+    async createRowLevelSecurityPolicies(
+        tableOrName: Table | string,
+        rowLevelSecurityPolicies: TableRowLevelSecurityPolicy[],
+    ): Promise<void> {
+        const promises = rowLevelSecurityPolicies.map(
+            (rowLevelSecurityPolicy) =>
+                this.createRowLevelSecurityPolicy(
+                    tableOrName,
+                    rowLevelSecurityPolicy,
+                ),
+        )
+        await Promise.all(promises)
+    }
+
+    /**
+     * Drops check constraint.
+     */
+    async dropRowLevelSecurityPolicy(
+        tableOrName: Table | string,
+        rowLevelSecurityPolicyOrName: TableRowLevelSecurityPolicy | string,
+    ): Promise<void> {
+        const table = InstanceChecker.isTable(tableOrName)
+            ? tableOrName
+            : await this.getCachedTable(tableOrName)
+        const rowLevelSecurityPolicy =
+            InstanceChecker.isTableRowLevelSecurityPolicy(
+                rowLevelSecurityPolicyOrName,
+            )
+                ? rowLevelSecurityPolicyOrName
+                : table.rowLevelSecurityPolicies.find(
+                      (p) => p.name === rowLevelSecurityPolicyOrName,
+                  )
+        if (!rowLevelSecurityPolicy)
+            throw new TypeORMError(
+                `Supplied row level security policy was not found in table ${table.name}`,
+            )
+
+        const up = this.dropRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
+        const down = this.createRowLevelSecurityPolicySql(
+            table,
+            rowLevelSecurityPolicy,
+        )
+        await this.executeQueries(up, down)
+        table.removeRowLevelSecurityPolicy(rowLevelSecurityPolicy)
+    }
+
+    /**
+     * Drops check constraints.
+     */
+    async dropRowLevelSecurityPolicies(
+        tableOrName: Table | string,
+        rowLevelSecurityPolicies: TableRowLevelSecurityPolicy[],
+    ): Promise<void> {
+        const promises = rowLevelSecurityPolicies.map(
+            (rowLevelSecurityPolicy) =>
+                this.dropRowLevelSecurityPolicy(
+                    tableOrName,
+                    rowLevelSecurityPolicy,
+                ),
+        )
+        await Promise.all(promises)
+    }
+
+    /**
      * Creates new exclusion constraint.
      */
     async createExclusionConstraint(
@@ -3202,7 +3317,7 @@ export class PostgresQueryRunner
         const indicesSql =
             `SELECT "ns"."nspname" AS "table_schema", "t"."relname" AS "table_name", "i"."relname" AS "constraint_name", "a"."attname" AS "column_name", ` +
             `CASE "ix"."indisunique" WHEN 't' THEN 'TRUE' ELSE'FALSE' END AS "is_unique", pg_get_expr("ix"."indpred", "ix"."indrelid") AS "condition", ` +
-            `"types"."typname" AS "type_name" ` +
+            `"types"."typname" AS "type_name"` +
             `FROM "pg_class" "t" ` +
             `INNER JOIN "pg_index" "ix" ON "ix"."indrelid" = "t"."oid" ` +
             `INNER JOIN "pg_attribute" "a" ON "a"."attrelid" = "t"."oid"  AND "a"."attnum" = ANY ("ix"."indkey") ` +
@@ -3213,7 +3328,7 @@ export class PostgresQueryRunner
             `WHERE "t"."relkind" IN ('m') AND "cnst"."contype" IS NULL AND (${constraintsCondition})`
 
         const query =
-            `SELECT "t".* FROM ${this.escapePath(
+            `SELECT "t".*, 'security_invoker=true' = ANY("c".reloptions) AS "secured" FROM ${this.escapePath(
                 this.getTypeormMetadataTableName(),
             )} "t" ` +
             `INNER JOIN "pg_catalog"."pg_class" "c" ON "c"."relname" = "t"."name" ` +
@@ -3265,6 +3380,7 @@ export class PostgresQueryRunner
                     isFulltext: false,
                 })
             })
+            view.secured = dbView["secured"]
             return view
         })
     }
@@ -3285,11 +3401,19 @@ export class PostgresQueryRunner
             table_schema: string
             table_name: string
             table_comment: string
+            table_row_level_security_enabled: boolean
+            table_row_level_security_forced: boolean
         }[] = []
 
+        const commonTablesSql =
+            `SELECT t."table_schema", t."table_name", obj_description(('"' || t."table_schema" || '"."' || t."table_name" || '"')::regclass, 'pg_class') AS table_comment,` +
+            `c."relrowsecurity" AS table_row_level_security_enabled, c."relforcerowsecurity" AS table_row_level_security_forced ` +
+            `FROM "information_schema"."tables" t ` +
+            `INNER JOIN "pg_namespace" n ON n."nspname" = t."table_schema" ` +
+            `INNER JOIN "pg_class" c ON c."relname" = t."table_name" AND c."relnamespace" = n."oid"`
+
         if (!tableNames) {
-            const tablesSql = `SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment FROM "information_schema"."tables"`
-            dbTables.push(...(await this.query(tablesSql)))
+            dbTables.push(...(await this.query(commonTablesSql)))
         } else {
             const tablesCondition = tableNames
                 .map((tableName) => this.driver.parseTableName(tableName))
@@ -3300,9 +3424,7 @@ export class PostgresQueryRunner
                 })
                 .join(" OR ")
 
-            const tablesSql =
-                `SELECT "table_schema", "table_name", obj_description(('"' || "table_schema" || '"."' || "table_name" || '"')::regclass, 'pg_class') AS table_comment FROM "information_schema"."tables" WHERE ` +
-                tablesCondition
+            const tablesSql = `${commonTablesSql} WHERE ` + tablesCondition
             dbTables.push(...(await this.query(tablesSql)))
         }
 
@@ -3397,16 +3519,28 @@ export class PostgresQueryRunner
             `INNER JOIN "pg_namespace" "ns" ON "cl"."relnamespace" = "ns"."oid" ` +
             `INNER JOIN "pg_attribute" "att2" ON "att2"."attrelid" = "con"."conrelid" AND "att2"."attnum" = "con"."parent"`
 
+        const rowLevelSecurityPoliciesCondition = dbTables
+            .map(({ table_schema, table_name }) => {
+                return `("schemaname" = '${table_schema}' AND "tablename" = '${table_name}')`
+            })
+            .join(" OR ")
+
+        const rowLevelSecurityPoliciesSql =
+            `SELECT schemaname as table_schema, tablename as table_name, policyname as policy_name, permissive, roles, qual ` +
+            `FROM "pg_policies" WHERE ${rowLevelSecurityPoliciesCondition}`
+
         const [
             dbColumns,
             dbConstraints,
             dbIndices,
             dbForeignKeys,
+            dbRowLevelSecurityPolicies,
         ]: ObjectLiteral[][] = await Promise.all([
             this.query(columnsSql),
             this.query(constraintsSql),
             this.query(indicesSql),
             this.query(foreignKeysSql),
+            this.query(rowLevelSecurityPoliciesSql),
         ])
 
         // create tables for loaded tables
@@ -3430,6 +3564,17 @@ export class PostgresQueryRunner
                     dbTable["table_name"],
                     schema,
                 )
+
+                if (dbTable["table_row_level_security_enabled"]) {
+                    if (dbTable["table_row_level_security_forced"]) {
+                        table.rowLevelSecurity = {
+                            enabled: true,
+                            force: true,
+                        }
+                    } else {
+                        table.rowLevelSecurity = true
+                    }
+                }
 
                 // create columns from the loaded columns
                 table.columns = await Promise.all(
@@ -3883,6 +4028,38 @@ export class PostgresQueryRunner
                     })
                 })
 
+                // find check constraints of table, group them by constraint name and build TableCheck.
+                const tableRowLevelSecurityPolicies = OrmUtils.uniq(
+                    dbRowLevelSecurityPolicies.filter(
+                        (dbRowLevelSecurityPolicy) => {
+                            return (
+                                dbRowLevelSecurityPolicy["table_name"] ===
+                                    dbTable["table_name"] &&
+                                dbRowLevelSecurityPolicy["table_schema"] ===
+                                    dbTable["table_schema"]
+                            )
+                        },
+                    ),
+                    (dbRowLevelSecurityPolicy) =>
+                        dbRowLevelSecurityPolicy["policy_name"],
+                )
+
+                table.rowLevelSecurityPolicies =
+                    tableRowLevelSecurityPolicies.map((policy) => {
+                        return new TableRowLevelSecurityPolicy({
+                            name: policy["policy_name"],
+                            // TODO: we should probably use expresion normilizer
+                            // For now it should work because we are using the naming strategy
+                            expression: policy["qual"],
+                            type:
+                                policy["permissive"] === "PERMISSIVE"
+                                    ? "permissive"
+                                    : "restrictive",
+                            //remove surrounding braces
+                            role: policy["roles"].replace(/^\{|\}$/g, ""),
+                        })
+                    })
+
                 // find exclusion constraints of table, group them by constraint name and build TableExclusion.
                 const tableExclusionConstraints = OrmUtils.uniq(
                     dbConstraints.filter((dbConstraint) => {
@@ -4160,15 +4337,17 @@ export class PostgresQueryRunner
 
     protected createViewSql(view: View): Query {
         const materializedClause = view.materialized ? "MATERIALIZED " : ""
+        const securedClause =
+            view.secured && !view.materialized ? "WITH (security_invoker) " : ""
         const viewName = this.escapePath(view)
 
         if (typeof view.expression === "string") {
             return new Query(
-                `CREATE ${materializedClause}VIEW ${viewName} AS ${view.expression}`,
+                `CREATE ${materializedClause}VIEW ${viewName} ${securedClause}AS ${view.expression}`,
             )
         } else {
             return new Query(
-                `CREATE ${materializedClause}VIEW ${viewName} AS ${view
+                `CREATE ${materializedClause}VIEW ${viewName} ${securedClause}AS ${view
                     .expression(this.connection)
                     .getQuery()}`,
             )
@@ -4454,6 +4633,52 @@ export class PostgresQueryRunner
             `ALTER TABLE ${this.escapePath(
                 table,
             )} DROP CONSTRAINT "${checkName}"`,
+        )
+    }
+
+    /**
+     * Builds create row level security policy sql.
+     */
+    protected createRowLevelSecurityPolicySql(
+        table: Table,
+        rowLevelSecurityPolicy: TableRowLevelSecurityPolicy,
+    ): Query {
+        return new Query(
+            `CREATE POLICY "${
+                rowLevelSecurityPolicy.name
+            }" ON ${this.escapePath(table)} 
+            ${
+                rowLevelSecurityPolicy.type
+                    ? `AS ${rowLevelSecurityPolicy.type.toUpperCase()}`
+                    : ""
+            }
+            FOR ALL
+            ${
+                rowLevelSecurityPolicy.role
+                    ? `TO ${rowLevelSecurityPolicy.role.toUpperCase()}`
+                    : ""
+            }
+            USING (${rowLevelSecurityPolicy.expression})`,
+        )
+    }
+
+    /**
+     * Builds drop check constraint sql.
+     */
+    protected dropRowLevelSecurityPolicySql(
+        table: Table,
+        rowLevelSecurityPolicyOrName: TableRowLevelSecurityPolicy | string,
+    ): Query {
+        const rowLevelSecurityPolicyName =
+            InstanceChecker.isTableRowLevelSecurityPolicy(
+                rowLevelSecurityPolicyOrName,
+            )
+                ? rowLevelSecurityPolicyOrName.name
+                : rowLevelSecurityPolicyOrName
+        return new Query(
+            `DROP POLICY "${rowLevelSecurityPolicyName}" ON ${this.escapePath(
+                table,
+            )}`,
         )
     }
 
@@ -4744,7 +4969,7 @@ export class PostgresQueryRunner
 
         newComment = this.escapeComment(newComment)
         const comment = this.escapeComment(table.comment)
-        
+
         if (newComment === comment) {
             return
         }
@@ -4769,5 +4994,74 @@ export class PostgresQueryRunner
 
         table.comment = newTable.comment
         this.replaceCachedTable(table, newTable)
+    }
+
+    /**
+     * Change table row level security.
+     */
+    async changeTableRowLevelSecurity(
+        tableOrName: Table | string,
+        rowLevelSecurity?: true | { enabled: true; force: true },
+    ): Promise<void> {
+        const table = InstanceChecker.isTable(tableOrName)
+            ? tableOrName
+            : await this.getCachedTable(tableOrName)
+
+        const previousRowLevelSecurity = table.rowLevelSecurity
+
+        const tableName = this.escapePath(table)
+
+        const upQueries = this.updateEnableRowLevelSecuritySql(
+            tableName,
+            previousRowLevelSecurity,
+            rowLevelSecurity,
+        )
+
+        const downQueries = this.updateEnableRowLevelSecuritySql(
+            tableName,
+            previousRowLevelSecurity,
+            rowLevelSecurity,
+        )
+
+        await this.executeQueries(upQueries, downQueries)
+    }
+
+    protected updateEnableRowLevelSecuritySql(
+        tableName: string,
+        previousRowLevelSecurity?: true | { enabled: true; force?: true },
+        rowLevelSecurity?: true | { enabled: true; force?: true },
+    ) {
+        const queries: Query[] = []
+
+        const expandRowLevelSecurity = (
+            rowLevelSecurity?: true | { enabled: true; force?: true },
+        ): undefined | { enabled: true; force?: true } => {
+            if (rowLevelSecurity === true) {
+                return { enabled: true }
+            }
+            return rowLevelSecurity
+        }
+
+        const oldRowLevelSecurity = expandRowLevelSecurity(
+            previousRowLevelSecurity,
+        )
+        const newRowLevelSecurity = expandRowLevelSecurity(rowLevelSecurity)
+
+        if (oldRowLevelSecurity?.enabled !== newRowLevelSecurity?.enabled) {
+            const sql = newRowLevelSecurity?.enabled ? `ENABLE` : `DISABLE`
+
+            queries.push(
+                new Query(`ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`),
+            )
+        }
+
+        if (oldRowLevelSecurity?.force !== newRowLevelSecurity?.force) {
+            const sql = newRowLevelSecurity?.force ? `FORCE` : `NO FORCE`
+            queries.push(
+                new Query(`ALTER TABLE ${tableName} ${sql} ROW LEVEL SECURITY`),
+            )
+        }
+
+        return queries
     }
 }

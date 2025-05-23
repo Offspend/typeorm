@@ -27,7 +27,7 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-modules-${{ hashFiles('package-lock.json') }}
 
-      - run: docker-compose up -d
+      - run: docker compose up -d
       - run: cp ormconfig.json.dist ormconfig.json
       - run: npm install rimraf
       - name: Run tests

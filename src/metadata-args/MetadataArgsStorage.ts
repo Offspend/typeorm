@@ -21,6 +21,7 @@ import { TreeMetadataArgs } from "./TreeMetadataArgs"
 import { UniqueMetadataArgs } from "./UniqueMetadataArgs"
 import { CheckMetadataArgs } from "./CheckMetadataArgs"
 import { ExclusionMetadataArgs } from "./ExclusionMetadataArgs"
+import { RowLevelSecurityPolicyMetadataArgs } from "./RowLevelSecurityPolicyMetadataArgs"
 
 /**
  * Storage all metadatas args of all available types: tables, columns, subscribers, relations, etc.
@@ -54,6 +55,7 @@ export class MetadataArgsStorage {
     readonly embeddeds: EmbeddedMetadataArgs[] = []
     readonly inheritances: InheritanceMetadataArgs[] = []
     readonly discriminatorValues: DiscriminatorValueMetadataArgs[] = []
+    readonly rowLevelSecurityPolicies: RowLevelSecurityPolicyMetadataArgs[] = []
 
     // -------------------------------------------------------------------------
     // Public Methods
@@ -180,6 +182,24 @@ export class MetadataArgsStorage {
                 ? target.indexOf(check.target) !== -1
                 : check.target === target
         })
+    }
+
+    filterRowLevelSecurityPolicies(
+        target: Function | string,
+    ): RowLevelSecurityPolicyMetadataArgs[]
+    filterRowLevelSecurityPolicies(
+        target: (Function | string)[],
+    ): RowLevelSecurityPolicyMetadataArgs[]
+    filterRowLevelSecurityPolicies(
+        target: (Function | string) | (Function | string)[],
+    ): RowLevelSecurityPolicyMetadataArgs[] {
+        return this.rowLevelSecurityPolicies.filter(
+            (rowLevelSecurityPolicy) => {
+                return Array.isArray(target)
+                    ? target.indexOf(rowLevelSecurityPolicy.target) !== -1
+                    : rowLevelSecurityPolicy.target === target
+            },
+        )
     }
 
     filterExclusions(target: Function | string): ExclusionMetadataArgs[]

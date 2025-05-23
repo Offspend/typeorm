@@ -23,6 +23,7 @@ import { ClosureTreeOptions } from "./types/ClosureTreeOptions"
 import { EntityPropertyNotFoundError } from "../error/EntityPropertyNotFoundError"
 import { ObjectUtils } from "../util/ObjectUtils"
 import { shorten } from "../util/StringUtils"
+import { RowLevelSecurityPolicyMetadata } from "./RowLevelSecurityMetadata"
 
 /**
  * Contains all entity metadata.
@@ -438,6 +439,11 @@ export class EntityMetadata {
     checks: CheckMetadata[] = []
 
     /**
+     * Entity's row level security policy metadatas.
+     */
+    rowLevelSecurityPolicies: RowLevelSecurityPolicyMetadata[] = []
+
+    /**
      * Entity's exclusion metadatas.
      */
     exclusions: ExclusionMetadata[] = []
@@ -520,6 +526,11 @@ export class EntityMetadata {
      * Table comment. Not supported by all database types.
      */
     comment?: string
+
+    /**
+     * Table row level security.
+     */
+    rowLevelSecurity?: true | { enabled: true; force: true }
 
     // ---------------------------------------------------------------------
     // Constructor
@@ -1068,6 +1079,7 @@ export class EntityMetadata {
             this.tableMetadataArgs.type === "closure-junction"
 
         this.comment = this.tableMetadataArgs.comment
+        this.rowLevelSecurity = this.tableMetadataArgs.rowLevelSecurity
     }
 
     /**

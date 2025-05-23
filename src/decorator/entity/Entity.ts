@@ -2,6 +2,7 @@ import { getMetadataArgsStorage } from "../../globals"
 import { TableMetadataArgs } from "../../metadata-args/TableMetadataArgs"
 import { EntityOptions } from "../options/EntityOptions"
 import { ObjectUtils } from "../../util/ObjectUtils"
+import { RowLevelSecurityOptions } from "./EnableRowLevelSecurity"
 
 /**
  * This decorator is used to mark classes that will be an entity (table or document depend on database type).
@@ -31,6 +32,14 @@ export function Entity(
         typeof nameOrOptions === "string" ? nameOrOptions : options.name
 
     return function (target) {
+        const targetWithRowLevelSecurityOptions = target as typeof target & {
+            _rowLevelSecurityOptions?: RowLevelSecurityOptions
+        }
+
+        const rowLevelSecurityOptions =
+            options.rowLevelSecurity ??
+            targetWithRowLevelSecurityOptions._rowLevelSecurityOptions
+
         getMetadataArgsStorage().tables.push({
             target: target,
             name: name,
@@ -42,6 +51,11 @@ export function Entity(
             synchronize: options.synchronize,
             withoutRowid: options.withoutRowid,
             comment: options.comment ? options.comment : undefined,
+            rowLevelSecurity: rowLevelSecurityOptions,
         } as TableMetadataArgs)
+
+        if (targetWithRowLevelSecurityOptions._rowLevelSecurityOptions) {
+            delete targetWithRowLevelSecurityOptions._rowLevelSecurityOptions
+        }
     }
 }
