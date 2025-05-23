@@ -4,7 +4,12 @@ import {
     closeTestingConnections,
     reloadTestingDatabases,
 } from "../../utils/test-utils"
-import { DataSource, DefaultNamingStrategy, EntityMetadata } from "../../../src"
+import {
+    DataSource,
+    DefaultNamingStrategy,
+    EntityMetadata,
+    EntityTarget,
+} from "../../../src"
 import { expect } from "chai"
 import { Tenant } from "./entity/Tenant"
 import { RowLevelSecurityPolicyMetadata } from "../../../src/metadata/RowLevelSecurityMetadata"
@@ -54,9 +59,10 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
         entityMetadataMutator: (entityMetadata: EntityMetadata) => void,
         assertingSql: string,
         assertingResult: (result: any[]) => void,
+        target: EntityTarget<any> = Tenant,
     ): Promise<void[]> =>
         mapAllDataSources(async (dataSource) => {
-            const entityMetadata = dataSource.getMetadata(Tenant)
+            const entityMetadata = dataSource.getMetadata(target)
             entityMetadataMutator(entityMetadata)
             await dataSource.synchronize()
             const result = await dataSource.manager.query(assertingSql)
@@ -107,7 +113,7 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
             ])
         }))
 
-    it.only("should do enable security_invoker=true when @ViewEntity has parent with@EnableRowLevelSecurity decorator", () =>
+    it("should do enable security_invoker=true when as a default", () =>
         mapAllDataSources(async (dataSource) => {
             const sql =
                 "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'view_base'"
@@ -124,7 +130,23 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
             expect(viewResult).to.be.eql([
                 { reloptions: ["security_invoker=true"] },
             ])
+
+            const metadata = dataSource.getMetadata(ViewInherited)
+            expect(metadata.tableMetadataArgs.secured).to.be.eql(true)
         }))
+
+    it("should do disable security_invoker=false when @ViewEntity is passed with secured: false", () =>
+        testSynchronize(
+            (entityMetadata) => {
+                entityMetadata.tableMetadataArgs.secured = false
+                entityMetadata.secured = false
+            },
+            "SELECT reloptions FROM pg_class WHERE relname = 'view_inherited'",
+            (result) => {
+                expect(result).to.be.eql([{ reloptions: null }])
+            },
+            ViewInherited,
+        ))
 
     const cases: [
         (

@@ -705,7 +705,8 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
                         : metadata.expression!(this.connection).getQuery()
                 return (
                     this.getTablePath(view) === this.getTablePath(metadata) &&
-                    viewExpression === metadataExpression
+                    viewExpression === metadataExpression &&
+                    !!view.secured === !!metadata.secured
                 )
             })
             if (existView) continue
@@ -749,7 +750,11 @@ export class RdbmsSchemaBuilder implements SchemaBuilder {
                     ? viewMetadata.expression.trim()
                     : viewMetadata.expression!(this.connection).getQuery()
 
-            if (viewExpression === metadataExpression) continue
+            if (
+                viewExpression === metadataExpression &&
+                !!view.secured === !!viewMetadata.secured
+            )
+                continue
 
             this.connection.logger.logSchemaBuild(
                 `dropping an old view: ${view.name}`,

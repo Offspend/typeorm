@@ -532,6 +532,11 @@ export class EntityMetadata {
      */
     rowLevelSecurity?: true | { enabled: true; force: true }
 
+    /**
+     * Activate security_invoker=true when true
+     */
+    secured?: boolean
+
     // ---------------------------------------------------------------------
     // Constructor
     // ---------------------------------------------------------------------
@@ -558,6 +563,7 @@ export class EntityMetadata {
         this.expression = this.tableMetadataArgs.expression
         this.withoutRowid = this.tableMetadataArgs.withoutRowid
         this.dependsOn = this.tableMetadataArgs.dependsOn
+        this.secured = this.tableMetadataArgs.secured
     }
 
     // -------------------------------------------------------------------------
