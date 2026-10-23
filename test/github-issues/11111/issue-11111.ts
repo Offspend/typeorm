@@ -193,6 +193,8 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
             const query =
                 "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'tenant'"
             try {
+                // previous tests leave the shared metadata mutated: reset the baseline
+                dataSource.getMetadata(Tenant).rowLevelSecurity = true
                 await dataSource.synchronize(true)
                 const table = await queryRunner.getTable("tenant")
                 await queryRunner.changeTableRowLevelSecurity(table!, undefined)
@@ -208,6 +210,67 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
                 await queryRunner.release()
             }
         }))
+
+    it("should keep the cached table in sync across consecutive row level security changes", () =>
+        mapAllDataSources(async (dataSource) => {
+            const queryRunner = dataSource.createQueryRunner()
+            const query =
+                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'tenant'"
+            try {
+                dataSource.getMetadata(Tenant).rowLevelSecurity = true
+                await dataSource.synchronize(true)
+                await queryRunner.getTable("tenant")
+
+                await queryRunner.changeTableRowLevelSecurity(
+                    "tenant",
+                    undefined,
+                )
+                await queryRunner.changeTableRowLevelSecurity("tenant", true)
+                expect(await queryRunner.query(query)).to.be.eql([
+                    { relrowsecurity: true, relforcerowsecurity: false },
+                ])
+            } finally {
+                await queryRunner.release()
+            }
+        }))
+
+    // the forced case equals the baseline, so it produces no queries
+    cases.slice(0, 2).forEach(([rowLevelSecurity]) => {
+        it(`should generate reversible migration queries when row level security changes to ${
+            rowLevelSecurity?.toString() ?? "undefined"
+        }`, () =>
+            mapAllDataSources(async (dataSource) => {
+                const metadata = dataSource.getMetadata(Tenant)
+                metadata.rowLevelSecurity = {
+                    enabled: true,
+                    force: true,
+                }
+                await dataSource.synchronize(true)
+
+                metadata.rowLevelSecurity = rowLevelSecurity
+                const sqlInMemory = await dataSource.driver
+                    .createSchemaBuilder()
+                    .log()
+                expect(sqlInMemory.upQueries.length).to.be.greaterThan(0)
+                expect(sqlInMemory.downQueries.length).to.be.greaterThan(0)
+
+                // running up then down must bring the schema back to the baseline
+                const queryRunner = dataSource.createQueryRunner()
+                try {
+                    for (const { query } of sqlInMemory.upQueries)
+                        await queryRunner.query(query)
+                    for (const { query } of sqlInMemory.downQueries)
+                        await queryRunner.query(query)
+                    metadata.rowLevelSecurity = { enabled: true, force: true }
+                    const after = await dataSource.driver
+                        .createSchemaBuilder()
+                        .log()
+                    expect(after.upQueries).to.have.length(0)
+                } finally {
+                    await queryRunner.release()
+                }
+            }))
+    })
 
     type PartialPolicy = {
         type?: "permissive" | "restrictive"
