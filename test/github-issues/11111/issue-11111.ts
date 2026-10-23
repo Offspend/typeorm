@@ -187,6 +187,28 @@ describe("github issues > #11111 Row Level Security For Postgres", () => {
             ))
     })
 
+    it("should revert row level security changes on down migration", () =>
+        mapAllDataSources(async (dataSource) => {
+            const queryRunner = dataSource.createQueryRunner()
+            const query =
+                "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'tenant'"
+            try {
+                await dataSource.synchronize(true)
+                const table = await queryRunner.getTable("tenant")
+                await queryRunner.changeTableRowLevelSecurity(table!, undefined)
+                expect(await queryRunner.query(query)).to.be.eql([
+                    { relrowsecurity: false, relforcerowsecurity: false },
+                ])
+
+                await queryRunner.executeMemoryDownSql()
+                expect(await queryRunner.query(query)).to.be.eql([
+                    { relrowsecurity: true, relforcerowsecurity: false },
+                ])
+            } finally {
+                await queryRunner.release()
+            }
+        }))
+
     type PartialPolicy = {
         type?: "permissive" | "restrictive"
         role?: string
