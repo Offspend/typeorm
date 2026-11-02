@@ -198,6 +198,7 @@ export class Table {
             withoutRowid: this.withoutRowid,
             engine: this.engine,
             comment: this.comment,
+            rowLevelSecurity: this.rowLevelSecurity,
         })
     }
 

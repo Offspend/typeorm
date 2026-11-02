@@ -5019,11 +5019,15 @@ export class PostgresQueryRunner
 
         const downQueries = this.updateEnableRowLevelSecuritySql(
             tableName,
-            previousRowLevelSecurity,
             rowLevelSecurity,
+            previousRowLevelSecurity,
         )
 
         await this.executeQueries(upQueries, downQueries)
+
+        const clonedTable = table.clone()
+        clonedTable.rowLevelSecurity = rowLevelSecurity
+        this.replaceCachedTable(table, clonedTable)
     }
 
     protected updateEnableRowLevelSecuritySql(
