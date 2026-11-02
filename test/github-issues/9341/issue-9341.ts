@@ -7,6 +7,7 @@ import {
     reloadTestingDatabases,
 } from "../../utils/test-utils"
 import { TestEntity } from "./entity/TestEntity"
+import { PlatformTools } from "../../../src/platform/PlatformTools"
 
 describe('github issues > #9341 "bigNumberStrings:false" is not working for postgres', () => {
     let connections: DataSource[]
@@ -21,7 +22,12 @@ describe('github issues > #9341 "bigNumberStrings:false" is not working for post
             })),
     )
     beforeEach(() => reloadTestingDatabases(connections))
-    after(() => closeTestingConnections(connections))
+    after(async () => {
+        await closeTestingConnections(connections)
+        // parseInt8 swaps the global node-postgres int8 type parsers: restore them
+        // so that following tests running in the same process get string counts again
+        PlatformTools.load("pg").defaults.parseInt8 = false
+    })
 
     it("should fetch big int as number not string when using parseInt8=true", async () => {
         for (const connection of connections) {
