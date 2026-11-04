@@ -36,11 +36,13 @@ describe("github issues > #11111 Row Level Security policy command > expansion",
                 "update",
                 "delete",
             ])
-            expect(expanded.map((e) => e.name)).to.eql([
-                undefined,
-                undefined,
-                undefined,
-            ])
+        })
+
+        it("should not invent a name when none is given", () => {
+            // the names are generated later from the expression, role, type and command
+            expect(
+                expand(["insert", "update", "delete"]).map((e) => e.name),
+            ).to.eql([undefined, undefined, undefined])
         })
 
         it("should keep the other properties of each expanded policy", () => {
