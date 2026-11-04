@@ -2809,6 +2809,7 @@ export class PostgresQueryRunner
                     rowLevelSecurityPolicy.expression,
                     rowLevelSecurityPolicy.role,
                     rowLevelSecurityPolicy.type,
+                    rowLevelSecurityPolicy.command,
                 )
 
         const up = this.createRowLevelSecurityPolicySql(
@@ -3526,7 +3527,7 @@ export class PostgresQueryRunner
             .join(" OR ")
 
         const rowLevelSecurityPoliciesSql =
-            `SELECT schemaname as table_schema, tablename as table_name, policyname as policy_name, permissive, roles, qual ` +
+            `SELECT schemaname as table_schema, tablename as table_name, policyname as policy_name, permissive, roles, cmd, qual, with_check ` +
             `FROM "pg_policies" WHERE ${rowLevelSecurityPoliciesCondition}`
 
         const [
@@ -4050,7 +4051,9 @@ export class PostgresQueryRunner
                             name: policy["policy_name"],
                             // TODO: we should probably use expresion normilizer
                             // For now it should work because we are using the naming strategy
-                            expression: policy["qual"],
+                            // INSERT policies only have a WITH CHECK expression
+                            expression: policy["qual"] ?? policy["with_check"],
+                            command: policy["cmd"].toLowerCase(),
                             type:
                                 policy["permissive"] === "PERMISSIVE"
                                     ? "permissive"
@@ -4643,6 +4646,10 @@ export class PostgresQueryRunner
         table: Table,
         rowLevelSecurityPolicy: TableRowLevelSecurityPolicy,
     ): Query {
+        const command = rowLevelSecurityPolicy.command ?? "all"
+        // INSERT policies only accept WITH CHECK, the other commands use USING
+        // (for UPDATE and ALL, PostgreSQL reuses USING as WITH CHECK when it is omitted)
+        const expressionClause = command === "insert" ? "WITH CHECK" : "USING"
         return new Query(
             `CREATE POLICY "${
                 rowLevelSecurityPolicy.name
@@ -4652,13 +4659,13 @@ export class PostgresQueryRunner
                     ? `AS ${rowLevelSecurityPolicy.type.toUpperCase()}`
                     : ""
             }
-            FOR ALL
+            FOR ${command.toUpperCase()}
             ${
                 rowLevelSecurityPolicy.role
                     ? `TO ${rowLevelSecurityPolicy.role.toUpperCase()}`
                     : ""
             }
-            USING (${rowLevelSecurityPolicy.expression})`,
+            ${expressionClause} (${rowLevelSecurityPolicy.expression})`,
         )
     }
 
