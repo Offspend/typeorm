@@ -150,10 +150,13 @@ export class DefaultNamingStrategy implements NamingStrategyInterface {
         expression: string,
         role?: string,
         type?: "permissive" | "restrictive",
+        command?: "all" | "select" | "insert" | "update" | "delete",
     ): string {
         const tableName = this.getTableName(tableOrName)
         const replacedTableName = tableName.replace(".", "_")
-        const key = `${replacedTableName}_${role}_${type}_${expression}`
+        // "all" is left out of the key to keep the names of existing policies unchanged
+        const commandKey = command && command !== "all" ? `_${command}` : ""
+        const key = `${replacedTableName}_${role}_${type}${commandKey}_${expression}`
         return "RLSP_" + RandomGenerator.sha1(key).substr(0, 26)
     }
 

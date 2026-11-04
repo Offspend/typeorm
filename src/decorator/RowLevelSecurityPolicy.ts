@@ -10,6 +10,7 @@ export function RowLevelSecurityPolicy({
     role,
     expression,
     type,
+    command,
     name,
 }: Omit<RowLevelSecurityPolicyMetadataArgs, "target">): ClassDecorator &
     PropertyDecorator {
@@ -24,6 +25,7 @@ export function RowLevelSecurityPolicy({
             name: name,
             expression: expression,
             type,
+            command,
             role,
         })
     }

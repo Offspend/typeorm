@@ -781,6 +781,12 @@ export class EntityMetadataBuilder {
         if (this.connection.driver.options.type === "postgres") {
             entityMetadata.rowLevelSecurityPolicies = this.metadataArgsStorage
                 .filterRowLevelSecurityPolicies(entityMetadata.inheritanceTree)
+                .flatMap((args) =>
+                    RowLevelSecurityPolicyMetadata.expandArgs(
+                        args,
+                        entityMetadata.name,
+                    ),
+                )
                 .map((args) => {
                     return new RowLevelSecurityPolicyMetadata({
                         entityMetadata,
