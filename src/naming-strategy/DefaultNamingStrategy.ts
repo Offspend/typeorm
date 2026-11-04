@@ -154,10 +154,13 @@ export class DefaultNamingStrategy implements NamingStrategyInterface {
     ): string {
         const tableName = this.getTableName(tableOrName)
         const replacedTableName = tableName.replace(".", "_")
-        // "all" is left out of the key to keep the names of existing policies unchanged
-        const commandKey = command && command !== "all" ? `_${command}` : ""
-        const key = `${replacedTableName}_${role}_${type}${commandKey}_${expression}`
-        return "RLSP_" + RandomGenerator.sha1(key).substr(0, 26)
+        const key = `${replacedTableName}_${role}_${type}_${expression}`
+        // "all" is left out of the key to keep the names of existing policies unchanged.
+        // The command is appended after a NUL (which cannot appear in an expression) so
+        // that it cannot collide with the key of an "all" policy ending with the same text.
+        const commandKey =
+            command && command !== "all" ? `\u0000${command}` : ""
+        return "RLSP_" + RandomGenerator.sha1(key + commandKey).substr(0, 26)
     }
 
     exclusionConstraintName(
