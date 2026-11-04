@@ -1,5 +1,6 @@
 import { RowLevelSecurityPolicyMetadata } from "../../metadata/RowLevelSecurityMetadata"
 import { TableRowLevelSecurityOptions } from "../options/TableRowLevelSecurityOptions"
+import { RowLevelSecurityPolicyCommand } from "../../metadata-args/RowLevelSecurityPolicyMetadataArgs"
 
 /**
  * Database's table check constraint stored in this class.
@@ -32,6 +33,11 @@ export class TableRowLevelSecurityPolicy {
     type?: "permissive" | "restrictive"
 
     /**
+     * Command the row level security policy applies to (by default "all").
+     */
+    command?: "all" | RowLevelSecurityPolicyCommand
+
+    /**
      * Role to which this row level security policy is applied.
      */
     role?: string
@@ -44,6 +50,7 @@ export class TableRowLevelSecurityPolicy {
         this.name = options.name
         this.expression = options.expression
         this.type = options.type
+        this.command = options.command
         this.role = options.role
     }
 
@@ -60,6 +67,7 @@ export class TableRowLevelSecurityPolicy {
             columnNames: this.columnNames ? [...this.columnNames] : [],
             expression: this.expression,
             type: this.type,
+            command: this.command,
             role: this.role,
         })
     }
@@ -78,6 +86,7 @@ export class TableRowLevelSecurityPolicy {
             name: rowLevelSecurityMetadata.name,
             expression: rowLevelSecurityMetadata.expression,
             type: rowLevelSecurityMetadata.type,
+            command: rowLevelSecurityMetadata.command,
             role: rowLevelSecurityMetadata.role,
         })
     }

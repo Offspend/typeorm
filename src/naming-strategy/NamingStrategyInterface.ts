@@ -112,6 +112,7 @@ export interface NamingStrategyInterface {
         expression: string,
         role?: string,
         type?: "permissive" | "restrictive",
+        command?: "all" | "select" | "insert" | "update" | "delete",
     ): string
 
     /**
