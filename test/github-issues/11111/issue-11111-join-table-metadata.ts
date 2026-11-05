@@ -3,6 +3,7 @@ import { expect } from "chai"
 import {
     DataSource,
     Entity,
+    EntitySchema,
     JoinTable,
     ManyToMany,
     PrimaryColumn,
@@ -58,10 +59,53 @@ class BadOwner {
     targets: BadTarget[]
 }
 
+const SchemaTarget = new EntitySchema<{ id: number }>({
+    name: "SchemaTarget",
+    tableName: "schema_target",
+    columns: { id: { type: Number, primary: true } },
+})
+
+const SchemaOwner = new EntitySchema<{
+    id: number
+    targets: unknown
+    composite: unknown
+}>({
+    name: "SchemaOwner",
+    tableName: "schema_owner",
+    columns: { id: { type: Number, primary: true } },
+    relations: {
+        targets: {
+            type: "many-to-many",
+            target: "SchemaTarget",
+            joinTable: {
+                name: "schema_owner_targets",
+                rowLevelSecurity: true,
+                rowLevelSecurityPolicies: [
+                    { expression: "TRUE" },
+                    { command: "select", expression: "TRUE", role: "r" },
+                ],
+            },
+        },
+        composite: {
+            type: "many-to-many",
+            target: "SchemaTarget",
+            joinTable: {
+                name: "schema_owner_composite",
+                joinColumns: [{ name: "ownerId", referencedColumnName: "id" }],
+                inverseJoinColumns: [
+                    { name: "targetId", referencedColumnName: "id" },
+                ],
+                rowLevelSecurity: true,
+                rowLevelSecurityPolicies: [{ expression: "TRUE" }],
+            },
+        },
+    },
+})
+
 describe("github issues > #11111 Row Level Security on a join table > metadata", () => {
     const build = async (
         type: "postgres" | "sqlite",
-        entities: Function[],
+        entities: (Function | EntitySchema<any>)[],
     ): Promise<DataSource> => {
         const dataSource = new DataSource({
             type,
@@ -137,5 +181,29 @@ describe("github issues > #11111 Row Level Security on a join table > metadata",
         expect(
             junction(dataSource, "meta_owner_targets").rowLevelSecurityPolicies,
         ).to.eql([])
+    })
+
+    describe("EntitySchema", () => {
+        it("should set row level security and the policies on the junction metadata", async () => {
+            const dataSource = await build("postgres", [
+                SchemaOwner,
+                SchemaTarget,
+            ])
+            const metadata = junction(dataSource, "schema_owner_targets")
+            expect(metadata.rowLevelSecurity).to.equal(true)
+            expect(
+                metadata.rowLevelSecurityPolicies.map((p) => p.command),
+            ).to.eql([undefined, "select"])
+        })
+
+        it("should set row level security and the policies on a junction with several columns", async () => {
+            const dataSource = await build("postgres", [
+                SchemaOwner,
+                SchemaTarget,
+            ])
+            const metadata = junction(dataSource, "schema_owner_composite")
+            expect(metadata.rowLevelSecurity).to.equal(true)
+            expect(metadata.rowLevelSecurityPolicies).to.have.length(1)
+        })
     })
 })
