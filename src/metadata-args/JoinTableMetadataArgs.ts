@@ -1,4 +1,6 @@
 import { JoinColumnMetadataArgs } from "./JoinColumnMetadataArgs"
+import { RowLevelSecurityOptions } from "../decorator/entity/EnableRowLevelSecurity"
+import { RowLevelSecurityPolicyMetadataArgs } from "./RowLevelSecurityPolicyMetadataArgs"
 
 /**
  * Arguments for JoinTableMetadata class.
@@ -48,4 +50,17 @@ export interface JoinTableMetadataArgs {
      * By default schema synchronization is enabled.
      */
     readonly synchronize?: boolean
+
+    /**
+     * Enables row level security on the join table. Supported only by postgres.
+     */
+    readonly rowLevelSecurity?: RowLevelSecurityOptions
+
+    /**
+     * Row level security policies of the join table.
+     */
+    readonly rowLevelSecurityPolicies?: Omit<
+        RowLevelSecurityPolicyMetadataArgs,
+        "target"
+    >[]
 }

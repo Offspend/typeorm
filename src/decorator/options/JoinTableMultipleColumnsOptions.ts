@@ -1,9 +1,10 @@
 import { JoinColumnOptions } from "./JoinColumnOptions"
+import { JoinTableRowLevelSecurityOptions } from "./JoinTableRowLevelSecurityOptions"
 
 /**
  * Describes all join table with multiple column options.
  */
-export interface JoinTableMultipleColumnsOptions {
+export interface JoinTableMultipleColumnsBaseOptions {
     /**
      * Name of the table that will be created to store values of the both tables (join table).
      * By default is auto generated.
@@ -39,3 +40,9 @@ export interface JoinTableMultipleColumnsOptions {
      */
     readonly synchronize?: boolean
 }
+
+/**
+ * Describes all join table with multiple column options, including its row level security.
+ */
+export type JoinTableMultipleColumnsOptions =
+    JoinTableMultipleColumnsBaseOptions & JoinTableRowLevelSecurityOptions

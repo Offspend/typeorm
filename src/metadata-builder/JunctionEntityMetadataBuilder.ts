@@ -50,6 +50,15 @@ export class JunctionEntityMetadataBuilder {
                     : "",
             )
 
+        // policies have no effect (and leave the table open) when row level security is not enabled
+        if (
+            joinTable.rowLevelSecurityPolicies?.length &&
+            !joinTable.rowLevelSecurity
+        )
+            throw new TypeORMError(
+                `Join table ${joinTableName} has row level security policies but row level security is not enabled. Set rowLevelSecurity in @JoinTable options.`,
+            )
+
         const entityMetadata = new EntityMetadata({
             connection: this.connection,
             args: {
@@ -60,6 +69,7 @@ export class JunctionEntityMetadataBuilder {
                     joinTable.database || relation.entityMetadata.database,
                 schema: joinTable.schema || relation.entityMetadata.schema,
                 synchronize: joinTable.synchronize,
+                rowLevelSecurity: joinTable.rowLevelSecurity,
             },
         })
         entityMetadata.build()

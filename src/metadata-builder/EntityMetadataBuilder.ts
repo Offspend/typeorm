@@ -21,6 +21,7 @@ import { ExclusionMetadata } from "../metadata/ExclusionMetadata"
 import { TypeORMError } from "../error"
 import { DriverUtils } from "../driver/DriverUtils"
 import { RowLevelSecurityPolicyMetadata } from "../metadata/RowLevelSecurityMetadata"
+import { RowLevelSecurityPolicyMetadataArgs } from "../metadata-args/RowLevelSecurityPolicyMetadataArgs"
 
 /**
  * Builds EntityMetadata objects and all its sub-metadatas.
@@ -307,6 +308,17 @@ export class EntityMetadataBuilder {
                         relation.registerJunctionEntityMetadata(
                             junctionEntityMetadata,
                         )
+
+                        junctionEntityMetadata.rowLevelSecurityPolicies =
+                            this.createRowLevelSecurityPolicies(
+                                junctionEntityMetadata,
+                                (joinTable.rowLevelSecurityPolicies ?? []).map(
+                                    (policy) => ({
+                                        ...policy,
+                                        target: joinTable.target,
+                                    }),
+                                ),
+                            )
 
                         // compute new entity metadata properties and push it to entity metadatas pool
                         this.computeEntityMetadataStep2(junctionEntityMetadata)
@@ -777,23 +789,13 @@ export class EntityMetadataBuilder {
                 return new CheckMetadata({ entityMetadata, args })
             })
 
-        // Only PostgreSQL supports row level security policies.
-        if (this.connection.driver.options.type === "postgres") {
-            entityMetadata.rowLevelSecurityPolicies = this.metadataArgsStorage
-                .filterRowLevelSecurityPolicies(entityMetadata.inheritanceTree)
-                .flatMap((args) =>
-                    RowLevelSecurityPolicyMetadata.expandArgs(
-                        args,
-                        entityMetadata.name,
-                    ),
-                )
-                .map((args) => {
-                    return new RowLevelSecurityPolicyMetadata({
-                        entityMetadata,
-                        args,
-                    })
-                })
-        }
+        entityMetadata.rowLevelSecurityPolicies =
+            this.createRowLevelSecurityPolicies(
+                entityMetadata,
+                this.metadataArgsStorage.filterRowLevelSecurityPolicies(
+                    entityMetadata.inheritanceTree,
+                ),
+            )
 
         // Only PostgreSQL supports exclusion constraints.
         if (this.connection.driver.options.type === "postgres") {
@@ -951,6 +953,33 @@ export class EntityMetadataBuilder {
             entityMetadata.allEmbeddeds.push(embeddedMetadata)
             return embeddedMetadata
         })
+    }
+
+    /**
+     * Creates row level security policy metadatas of the given entity metadata, one per command.
+     * Shared by entities (policies of the decorators) and junction tables (policies of the join table options).
+     * Only PostgreSQL supports row level security policies.
+     */
+    protected createRowLevelSecurityPolicies(
+        entityMetadata: EntityMetadata,
+        policyArgs: RowLevelSecurityPolicyMetadataArgs[],
+    ): RowLevelSecurityPolicyMetadata[] {
+        if (this.connection.driver.options.type !== "postgres") return []
+
+        return policyArgs
+            .flatMap((args) =>
+                RowLevelSecurityPolicyMetadata.expandArgs(
+                    args,
+                    entityMetadata.name,
+                ),
+            )
+            .map(
+                (args) =>
+                    new RowLevelSecurityPolicyMetadata({
+                        entityMetadata,
+                        args,
+                    }),
+            )
     }
 
     /**
