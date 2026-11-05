@@ -82,17 +82,20 @@ describe(`driver-utils`, () => {
             expect(shortAlias).to.have.length(20)
         })
 
-        it("clears the cache once it holds 10,000 entries", () => {
+        it("evicts the least recently used alias once it holds 10,000 entries", () => {
             buildUniqueAlias(63, "evicted")
+            buildUniqueAlias(63, "kept")
             buildUniqueAlias(63, "evicted")
             expect(hashCallsFor("evicted", 63)).to.equal(1)
 
             for (let i = 0; i < 10000; i++) {
                 buildUniqueAlias(63, `filler${i}`)
+                buildUniqueAlias(63, "kept")
             }
             buildUniqueAlias(63, "evicted")
 
             expect(hashCallsFor("evicted", 63)).to.equal(2)
+            expect(hashCallsFor("kept", 63)).to.equal(1)
         })
 
         it("leaves an alias within the limit unchanged", () => {

@@ -4,16 +4,22 @@ import { VersionUtils } from "../util/VersionUtils"
 
 // Hydration calls buildAlias for every column of every row, so hashing a long
 // alias with SHA1 each time dominates CPU on large joined result sets.
+// The cache is an LRU: a Map keeps insertion order, so a hit is moved to the
+// end and the first key is the least recently used one.
 const HASHED_ALIAS_CACHE_MAX_SIZE = 10000
 const hashedAliasCache = new Map<string, string>()
 
 function hashAlias(alias: string, length: number): string {
     const cacheKey = `${length}:${alias}`
     const cachedAlias = hashedAliasCache.get(cacheKey)
-    if (cachedAlias !== undefined) return cachedAlias
+    if (cachedAlias !== undefined) {
+        hashedAliasCache.delete(cacheKey)
+        hashedAliasCache.set(cacheKey, cachedAlias)
+        return cachedAlias
+    }
 
     if (hashedAliasCache.size >= HASHED_ALIAS_CACHE_MAX_SIZE)
-        hashedAliasCache.clear()
+        hashedAliasCache.delete(hashedAliasCache.keys().next().value!)
     const hashedAlias = hash(alias, { length })
     hashedAliasCache.set(cacheKey, hashedAlias)
     return hashedAlias
