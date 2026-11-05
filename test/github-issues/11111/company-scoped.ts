@@ -15,9 +15,11 @@ export const COMPANY_TABLE = "optional_company_scoped"
 
 const ROLES = [COMPANY_ROLE, UNRESTRICTED_ROLE]
 
-export async function createCompanyScopedDataSources(): Promise<DataSource[]> {
+export async function createCompanyScopedDataSources(
+    entities: Function[] = [OptionalCompanyScoped],
+): Promise<DataSource[]> {
     const dataSources = await createTestingConnections({
-        entities: [OptionalCompanyScoped],
+        entities,
         enabledDrivers: ["postgres"],
         schemaCreate: false,
         dropSchema: true,
