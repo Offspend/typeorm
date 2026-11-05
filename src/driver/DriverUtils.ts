@@ -2,6 +2,23 @@ import { Driver } from "./Driver"
 import { hash, shorten } from "../util/StringUtils"
 import { VersionUtils } from "../util/VersionUtils"
 
+// Hydration calls buildAlias for every column of every row, so hashing a long
+// alias with SHA1 each time dominates CPU on large joined result sets.
+const HASHED_ALIAS_CACHE_MAX_SIZE = 10000
+const hashedAliasCache = new Map<string, string>()
+
+function hashAlias(alias: string, length: number): string {
+    const cacheKey = `${length}:${alias}`
+    const cachedAlias = hashedAliasCache.get(cacheKey)
+    if (cachedAlias !== undefined) return cachedAlias
+
+    if (hashedAliasCache.size >= HASHED_ALIAS_CACHE_MAX_SIZE)
+        hashedAliasCache.clear()
+    const hashedAlias = hash(alias, { length })
+    hashedAliasCache.set(cacheKey, hashedAlias)
+    return hashedAlias
+}
+
 /**
  * Common driver utility functions.
  */
@@ -144,7 +161,7 @@ export class DriverUtils {
                 }
             }
 
-            return hash(newAlias, { length: maxAliasLength })
+            return hashAlias(newAlias, maxAliasLength)
         }
 
         return newAlias
