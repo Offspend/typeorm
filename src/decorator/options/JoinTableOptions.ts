@@ -1,9 +1,10 @@
 import { JoinColumnOptions } from "./JoinColumnOptions"
+import { JoinTableRowLevelSecurityOptions } from "./JoinTableRowLevelSecurityOptions"
 
 /**
  * Describes join table options.
  */
-export interface JoinTableOptions {
+export interface JoinTableBaseOptions {
     /**
      * Name of the table that will be created to store values of the both tables (join table).
      * By default is auto generated.
@@ -39,3 +40,9 @@ export interface JoinTableOptions {
      */
     synchronize?: boolean
 }
+
+/**
+ * Describes join table options, including its row level security.
+ */
+export type JoinTableOptions = JoinTableBaseOptions &
+    JoinTableRowLevelSecurityOptions

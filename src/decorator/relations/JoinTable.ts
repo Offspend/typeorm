@@ -51,6 +51,8 @@ export function JoinTable(
             database:
                 options && options.database ? options.database : undefined,
             synchronize: !(options && options.synchronize === false),
+            rowLevelSecurity: options.rowLevelSecurity,
+            rowLevelSecurityPolicies: options.rowLevelSecurityPolicies,
         } as JoinTableMetadataArgs)
     }
 }

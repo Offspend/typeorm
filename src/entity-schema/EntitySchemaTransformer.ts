@@ -232,6 +232,11 @@ export class EntitySchemaTransformer {
                             name: relationSchema.joinTable.name,
                             database: relationSchema.joinTable.database,
                             schema: relationSchema.joinTable.schema,
+                            rowLevelSecurity:
+                                relationSchema.joinTable.rowLevelSecurity,
+                            rowLevelSecurityPolicies:
+                                relationSchema.joinTable
+                                    .rowLevelSecurityPolicies,
                             joinColumns: ((
                                 relationSchema.joinTable as JoinTableOptions
                             ).joinColumn
